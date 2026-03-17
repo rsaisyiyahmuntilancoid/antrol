@@ -754,8 +754,12 @@ class MobileJknService
 
             $metaMessage = $responseData['metadata']['message'] ?? ($responseData['metadata'] ?? null);
             
-            // Handle "time cannot be less than or equal to previous time" error
-            if (is_string($metaMessage) && strpos($metaMessage, 'tidak boleh kurang atau sama dengan waktu sebelumnya') !== false) {
+            // Handle "time cannot be less than or equal to previous time" error or "time is greater than current task" error
+            if (is_string($metaMessage) && (
+                strpos($metaMessage, 'tidak boleh kurang atau sama dengan waktu sebelumnya') !== false ||
+                strpos($metaMessage, 'lebih besar dari pada TaskId') !== false ||
+                strpos($metaMessage, 'lebih besar daripada TaskId') !== false
+            )) {
                 Log::warning('Time validation error, attempting automatic retry with adjusted time', [
                     'kodebooking' => $kodebooking,
                     'taskid' => $taskid,
@@ -796,6 +800,25 @@ class MobileJknService
                         ]);
                     } catch (\Exception $e) {
                          Log::error("Failed to parse BPJS returned time", ['error' => $e->getMessage()]);
+                    }
+                }
+
+                // If message contains the time, try to extract it from the message itself as well
+                if (preg_match('/TaskId=\d+ \((.*?)\) lebih besar dari ?pada TaskId/', $metaMessage, $matches)) {
+                    try {
+                        $timeString = str_replace([' WIB', ' WITA', ' WIT'], '', $matches[1]);
+                        // Example: 2026-03-17 15:39:34
+                        $time = \Carbon\Carbon::parse($timeString, 'Asia/Jakarta');
+                        $msgWaktu = $time->timestamp * 1000;
+                        if ($previousWaktu === null || $msgWaktu > $previousWaktu) {
+                            $previousWaktu = $msgWaktu;
+                            Log::info('Extracted previous task time from error message', [
+                                'extracted_time' => $timeString,
+                                'new_previous_waktu' => $previousWaktu
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        Log::debug('Failed to parse time from error message', ['error' => $e->getMessage()]);
                     }
                 }
                 
@@ -1039,8 +1062,11 @@ class MobileJknService
                 ];
             }
 
+            $metaCode = $responseData['metadata']['code'] ?? null;
+            $isBpjsSuccess = ($metaCode == 200 || $metaCode == 201 || (is_string($metaMessage) && strpos($metaMessage, 'Ok') !== false));
+
             return [
-                'success' => $response->successful(),
+                'success' => $response->successful() && $isBpjsSuccess,
                 'status_code' => $response->status(),
                 'data' => $responseData,
                 'metadata' => $responseData['metadata'] ?? null,
