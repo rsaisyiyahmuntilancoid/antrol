@@ -66,7 +66,7 @@ class SendBpjsTaskIds extends Command
             'pasien',
             'bridgingSep'
         ])
-        ->where('kd_pj', 'A65')
+        ->where('kd_pj', $kdPj)
         ->whereBetween('tgl_registrasi', [$dateFrom, $dateTo]);
 
         // Exclude specific poli if configured
