@@ -193,7 +193,7 @@ class MobileJknService
         $regPeriksa = RegPeriksa::where('no_rawat', $referensi ? $referensi->no_rawat : $kodebooking)->first();
 
         if ($regPeriksa && $regPeriksa->jam_reg) {
-            $waktuReg =  Carbon::parse(str_replace(' 00:00:00', '', $regPeriksa->tgl_registrasi) . ' ' . $regPeriksa->jam_reg->toTimeString());
+            $waktuReg =  Carbon::parse(str_replace(' 00:00:00', '', $regPeriksa->tgl_registrasi) . ' ' . $regPeriksa->jam_reg->toTimeString(), 'Asia/Jakarta');
             return $waktuReg->timestamp * 1000;
         }
 
@@ -219,7 +219,7 @@ class MobileJknService
         if ($pemeriksaan && $pemeriksaan->jam_rawat) {
             // Use service date for the date part, just the time from jam_rawat
             $datePart = $serviceDate ? $serviceDate->toDateString() : (str_replace(' 00:00:00', '', $pemeriksaan->tgl_perawatan));
-            $waktu = Carbon::parse($datePart . ' ' . $pemeriksaan->jam_rawat->toTimeString());
+            $waktu = Carbon::parse($datePart . ' ' . $pemeriksaan->jam_rawat->toTimeString(), 'Asia/Jakarta');
             return (string) ($waktu->timestamp * 1000);
         } else {
             $pemeriksaan = PemeriksaanRalan::where('no_rawat', $kodebooking)
@@ -228,7 +228,7 @@ class MobileJknService
 
             if ($pemeriksaan && $pemeriksaan->jam_rawat) {
                 $datePart = $serviceDate ? $serviceDate->toDateString() : (str_replace(' 00:00:00', '', $pemeriksaan->tgl_perawatan));
-                $waktu = Carbon::parse($datePart . ' ' . $pemeriksaan->jam_rawat->toTimeString());
+                $waktu = Carbon::parse($datePart . ' ' . $pemeriksaan->jam_rawat->toTimeString(), 'Asia/Jakarta');
                 try {
                     $offsetMinutes = random_int(5, 10);
                 } catch (Throwable $e) {
@@ -275,7 +275,7 @@ class MobileJknService
         if ($pemeriksaan && $pemeriksaan->jam_rawat) {
             // Use service date for the date part, just the time from jam_rawat
             $datePart = $serviceDate ? $serviceDate->toDateString() : (str_replace(' 00:00:00', '', $pemeriksaan->tgl_perawatan));
-            $waktu = Carbon::parse($datePart . ' ' . $pemeriksaan->jam_rawat->toTimeString());
+            $waktu = Carbon::parse($datePart . ' ' . $pemeriksaan->jam_rawat->toTimeString(), 'Asia/Jakarta');
             
             // Validate that the time is on the correct service date
             if ($serviceDate && $waktu->toDateString() !== $serviceDate->toDateString()) {
@@ -295,7 +295,7 @@ class MobileJknService
 
             if ($pemeriksaan && $pemeriksaan->jam_rawat) {
                 $datePart = $serviceDate ? $serviceDate->toDateString() : (str_replace(' 00:00:00', '', $pemeriksaan->tgl_perawatan));
-                $waktu = Carbon::parse($datePart . ' ' . $pemeriksaan->jam_rawat->toTimeString());
+                $waktu = Carbon::parse($datePart . ' ' . $pemeriksaan->jam_rawat->toTimeString(), 'Asia/Jakarta');
                 
                 // Validate that the time is on the correct service date
                 if ($serviceDate && $waktu->toDateString() !== $serviceDate->toDateString()) {
@@ -352,7 +352,7 @@ class MobileJknService
         if ($resep && $resep->jam) {
             // Use service date for the date part, just the time from jam
             $datePart = $serviceDate ? $serviceDate->toDateString() : (str_replace(' 00:00:00', '', $resep->tgl_perawatan));
-            $waktu = Carbon::parse($datePart . ' ' . $resep->jam->toTimeString());
+            $waktu = Carbon::parse($datePart . ' ' . $resep->jam->toTimeString(), 'Asia/Jakarta');
             
             // Validate that the time is on the correct service date
             if ($serviceDate && $waktu->toDateString() !== $serviceDate->toDateString()) {
@@ -401,7 +401,7 @@ class MobileJknService
         if ($resep && $resep->jam_penyerahan) {
             // Use service date for the date part, just the time from jam_penyerahan
             $datePart = $serviceDate ? $serviceDate->toDateString() : (str_replace(' 00:00:00', '', $resep->tgl_penyerahan));
-            $waktu = Carbon::parse($datePart . ' ' . $resep->jam_penyerahan->toTimeString());
+            $waktu = Carbon::parse($datePart . ' ' . $resep->jam_penyerahan->toTimeString(), 'Asia/Jakarta');
             return (string) ($waktu->timestamp * 1000);
         }
 
@@ -428,7 +428,7 @@ class MobileJknService
             ->first();
         
         if ($previousTask && $previousTask->waktu) {
-            $previousTime = Carbon::parse($previousTask->waktu);
+            $previousTime = Carbon::parse($previousTask->waktu, 'Asia/Jakarta');
             return (int)($previousTime->timestamp * 1000);
         }
         
@@ -458,7 +458,7 @@ class MobileJknService
                 $regPeriksa = RegPeriksa::where('no_rawat', $referensi->no_rawat)->first();
                 
                 if ($regPeriksa && $regPeriksa->tgl_registrasi) {
-                    $serviceDate = Carbon::parse($regPeriksa->tgl_registrasi);
+                    $serviceDate = Carbon::parse($regPeriksa->tgl_registrasi, 'Asia/Jakarta');
                     Log::debug('Service date from reg_periksa (by nobooking)', [
                         'kodebooking' => $kodebooking,
                         'no_rawat' => $referensi->no_rawat,
@@ -471,7 +471,7 @@ class MobileJknService
             // Second priority: Try to get from reg_periksa directly using kodebooking as no_rawat
             $regPeriksa = RegPeriksa::where('no_rawat', $kodebooking)->first();
             if ($regPeriksa && $regPeriksa->tgl_registrasi) {
-                $serviceDate = Carbon::parse($regPeriksa->tgl_registrasi);
+                $serviceDate = Carbon::parse($regPeriksa->tgl_registrasi, 'Asia/Jakarta');
                 Log::debug('Service date from reg_periksa (direct)', [
                     'kodebooking' => $kodebooking,
                     'service_date' => $serviceDate
@@ -491,7 +491,7 @@ class MobileJknService
                 $day = $parts[2];
                 
                 if (is_numeric($year) && is_numeric($month) && is_numeric($day)) {
-                    $serviceDate = Carbon::createFromDate($year, $month, $day);
+                    $serviceDate = Carbon::createFromDate($year, $month, $day, 'Asia/Jakarta');
                     Log::debug('Service date extracted from kodebooking (fallback)', [
                         'kodebooking' => $kodebooking,
                         'service_date' => $serviceDate
@@ -677,11 +677,11 @@ class MobileJknService
                 
                 // Use current time if within service date, otherwise use end of service date
                 if ($serviceDate) {
-                    $now = Carbon::now()->timestamp * 1000;
+                    $now = Carbon::now('Asia/Jakarta')->timestamp * 1000;
                     $serviceDateEnd = $serviceDate->copy()->setTime(23, 59, 59)->timestamp * 1000;
                     $waktuInt = min($now, $serviceDateEnd);
                 } else {
-                    $waktuInt = (int)(Carbon::now()->timestamp * 1000);
+                    $waktuInt = (int)(Carbon::now('Asia/Jakarta')->timestamp * 1000);
                 }
             }
             
@@ -903,7 +903,7 @@ class MobileJknService
                 
                 if ($expectedDateStr) {
                     try {
-                        $expectedDate = Carbon::parse($expectedDateStr);
+                        $expectedDate = Carbon::parse($expectedDateStr, 'Asia/Jakarta');
                         
                         // For any task, try to get previous task's time on this correct date
                         $previousWaktu = $this->getPreviousTaskTime($kodebooking, $taskid);
@@ -1415,7 +1415,7 @@ class MobileJknService
             }
 
             $noRegInt = intval($reg->no_reg);
-            $baseDatetime = Carbon::parse(explode(' ', $reg->tgl_registrasi)[0] . ' ' . ($jadwal->jam_mulai ?? '00:00:00'));
+            $baseDatetime = Carbon::parse(explode(' ', $reg->tgl_registrasi)[0] . ' ' . ($jadwal->jam_mulai ?? '00:00:00'), 'Asia/Jakarta');
             $estimasidilayani = $baseDatetime->copy()->addMinutes($noRegInt * 2);
 
             $pasienbaru = 0;
@@ -1819,7 +1819,7 @@ class MobileJknService
 
         try {
             // default to current month/year if not provided
-            $now = Carbon::now();
+            $now = Carbon::now('Asia/Jakarta');
             $bulan = $bulan ?: $now->format('m');
             $tahun = $tahun ?: $now->format('Y');
 

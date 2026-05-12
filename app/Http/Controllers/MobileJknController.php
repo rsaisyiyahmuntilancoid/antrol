@@ -448,7 +448,7 @@ class MobileJknController extends Controller
                     
                     if ($pemeriksaanRalan && $pemeriksaanRalan->jam_rawat) {
                         // Use the date from tanggalperiksa and time from pemeriksaan ralan minus 10 minutes
-                        $validasiTimestamp = \Carbon\Carbon::parse($referensi->tanggalperiksa)
+                        $validasiTimestamp = \Carbon\Carbon::parse($referensi->tanggalperiksa, 'Asia/Jakarta')
                             ->setTime(
                                 $pemeriksaanRalan->jam_rawat->hour,
                                 $pemeriksaanRalan->jam_rawat->minute,
