@@ -69,7 +69,7 @@ class RunBpjsTaskIdCommand implements ShouldQueue
                     'completed' => 0,
                     'failed' => 0,
                     'pending' => 0,
-                    'started_at' => now()->toIso8601String()
+                    'started_at' => now()->timezone('Asia/Jakarta')->toIso8601String()
                 ]
             ], 3600);
             
@@ -80,10 +80,10 @@ class RunBpjsTaskIdCommand implements ShouldQueue
             
             // Update the status to running and maintain any existing output
             $cacheEntry['status'] = 'running';
-            $cacheEntry['started_at'] = now()->toIso8601String();
+            $cacheEntry['started_at'] = now()->timezone('Asia/Jakarta')->toIso8601String();
             
             // Add a message that the job is now running
-            $cacheEntry['output'][] = "Command started at " . now()->format('Y-m-d H:i:s') . "\n";
+            $cacheEntry['output'][] = "Command started at " . now()->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') . "\n";
             
             // Limit the size of the output array to prevent excessive memory usage
             if (count($cacheEntry['output']) > 100) {
@@ -100,10 +100,14 @@ class RunBpjsTaskIdCommand implements ShouldQueue
             
             if (!empty($this->options['date-from'])) {
                 $commandOptions['--date-from'] = $this->options['date-from'];
+            } else {
+                $commandOptions['--date-from'] = now()->timezone('Asia/Jakarta')->format('Y-m-d');
             }
             
             if (!empty($this->options['date-to'])) {
                 $commandOptions['--date-to'] = $this->options['date-to'];
+            } else {
+                $commandOptions['--date-to'] = now()->timezone('Asia/Jakarta')->format('Y-m-d');
             }
             
             if (!empty($this->options['dry-run'])) {
@@ -175,7 +179,7 @@ class RunBpjsTaskIdCommand implements ShouldQueue
                     if ($exitCode === 0) {
                         $success = true;
                         $currentOutput['status'] = 'completed';
-                        $currentOutput['completed_at'] = now()->toIso8601String();
+                        $currentOutput['completed_at'] = now()->timezone('Asia/Jakarta')->toIso8601String();
                         $currentOutput['exit_code'] = $exitCode;
                         Cache::put('command-output:' . $this->jobId, $currentOutput, 3600);
                         break;
@@ -221,7 +225,7 @@ class RunBpjsTaskIdCommand implements ShouldQueue
             if (!$success) {
                 $finalOutput = Cache::get('command-output:' . $this->jobId, ['output' => []]);
                 $finalOutput['status'] = 'failed';
-                $finalOutput['completed_at'] = now()->toIso8601String();
+                $finalOutput['completed_at'] = now()->timezone('Asia/Jakarta')->toIso8601String();
                 $finalOutput['exit_code'] = $exitCode ?? 1;
                 Cache::put('command-output:' . $this->jobId, $finalOutput, 3600);
 
@@ -238,7 +242,7 @@ class RunBpjsTaskIdCommand implements ShouldQueue
             // Update cache with the failure
             $finalOutput = Cache::get('command-output:' . $this->jobId, ['output' => []]);
             $finalOutput['status'] = 'error';
-            $finalOutput['completed_at'] = now()->toIso8601String();
+            $finalOutput['completed_at'] = now()->timezone('Asia/Jakarta')->toIso8601String();
             $finalOutput['error'] = $e->getMessage();
             Cache::put('command-output:' . $this->jobId, $finalOutput, 3600);
             
@@ -320,7 +324,7 @@ class RunBpjsTaskIdCommand implements ShouldQueue
         
         $finalOutput = Cache::get('command-output:' . $this->jobId, ['output' => []]);
         $finalOutput['status'] = 'failed';
-        $finalOutput['completed_at'] = now()->toIso8601String();
+        $finalOutput['completed_at'] = now()->timezone('Asia/Jakarta')->toIso8601String();
         $finalOutput['error'] = $exception->getMessage();
         Cache::put('command-output:' . $this->jobId, $finalOutput, 3600);
     }
