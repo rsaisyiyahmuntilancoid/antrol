@@ -44,7 +44,7 @@ class SendBpjsTaskIds extends Command
         $this->newLine();
 
         // Get configuration from environment
-        $kdPj = config('mobilejkn.kd_pj', 'BPJ');
+        $kdPj = config('mobilejkn.kd_pj', 'A65');
         $excludePoli = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
         $excludePoliArray = array_filter(explode(',', $excludePoli));
 
