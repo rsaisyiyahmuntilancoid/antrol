@@ -45,6 +45,7 @@ class CommandOutputController extends Controller
                     'date_to' => 'nullable|date',
                     'dry_run' => 'nullable|boolean',
                     'mjkn' => 'nullable|boolean',
+                    'all' => 'nullable|boolean',
                 ]);
             } catch (\Exception $validationError) {
                 Log::warning('Validation failed', ['error' => $validationError->getMessage()]);
@@ -60,6 +61,7 @@ class CommandOutputController extends Controller
                 'date-to' => $request->date_to ?? null,
                 'dry-run' => $request->has('dry_run') ? (bool)$request->dry_run : false,
                 'mjkn' => $request->has('mjkn') ? (bool)$request->mjkn : false,
+                'all' => $request->has('all') ? (bool)$request->all : false,
             ];
 
             // Create a unique job ID

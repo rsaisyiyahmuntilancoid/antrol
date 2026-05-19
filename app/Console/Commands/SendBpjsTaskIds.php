@@ -25,6 +25,7 @@ class SendBpjsTaskIds extends Command
                             {--date-from= : Start date (Y-m-d)}
                             {--date-to= : End date (Y-m-d)}
                             {--mjkn : Run only for Mobile JKN references}
+                            {--all : Send all patients again, even if task IDs were already sent}
                             {--dry-run : Show what would be processed without actually sending}';
 
     /**
@@ -56,6 +57,9 @@ class SendBpjsTaskIds extends Command
         if (!empty($excludePoliArray)) {
             $this->info("Excluding Poli: " . implode(', ', $excludePoliArray));
         }
+        if ($this->option('all')) {
+            $this->info("Force Resend Mode: Sending all patients again");
+        }
         $this->newLine();
 
         // Build query for patients
@@ -64,7 +68,8 @@ class SendBpjsTaskIds extends Command
             'poliklinik',
             'dokter',
             'pasien',
-            'bridgingSep'
+            'bridgingSep',
+            'referensiMobilejknBpjsTaskid'
         ])
         ->where('kd_pj', $kdPj)
         ->whereBetween('tgl_registrasi', [$dateFrom, $dateTo]);
@@ -77,6 +82,16 @@ class SendBpjsTaskIds extends Command
         // Run only for Mobile JKN references if requested
         if ($this->option('mjkn')) {
             $query->has('referensiMobilejknBpjs');
+        }
+
+        // If not running for all, only process those who haven't completed all 5 tasks (3, 4, 5, 6, 7)
+        if (!$this->option('all')) {
+            $query->where(function ($q) {
+                $q->whereDoesntHave('referensiMobilejknBpjsTaskid')
+                  ->orWhereHas('referensiMobilejknBpjsTaskid', function ($subQ) {
+                      $subQ->whereIn('taskid', ['3', '4', '5', '6', '7']);
+                  }, '<', 5);
+            });
         }
 
         $patients = $query->get();
@@ -137,6 +152,15 @@ class SendBpjsTaskIds extends Command
         // Add antrean first
         $this->line("Processing patient: {$patient->no_rawat} (Booking: {$kodebooking})");
 
+        // Get already sent task IDs if not forcing resend
+        $existingTaskIds = [];
+        if (!$this->option('all') && $patient->referensiMobilejknBpjsTaskid) {
+            $existingTaskIds = $patient->referensiMobilejknBpjsTaskid
+                ->pluck('taskid')
+                ->map(fn($id) => (int)$id)
+                ->toArray();
+        }
+
         if (!$this->option('dry-run')) {
             // $antreanResult = app(MobileJknService::class)->addAntrean($patientData);
 
@@ -145,25 +169,31 @@ class SendBpjsTaskIds extends Command
             //     $this->line("Antrean added successfully for: {$kodebooking}");
 
                 // Send task IDs
-            $this->sendTaskIds($kodebooking, $stats);
+            $this->sendTaskIds($kodebooking, $stats, false, $existingTaskIds);
             // } else {
             //     $stats['antrean_failed']++;
             //     $this->line("Failed to add antrean for: {$kodebooking} - " . ($antreanResult['error'] ?? 'Unknown error'));
             // }
         } else {
             $this->line("DRY RUN: Would add antrean for: {$kodebooking}");
-            $this->sendTaskIds($kodebooking, $stats, true);
+            $this->sendTaskIds($kodebooking, $stats, true, $existingTaskIds);
         }
     }
 
     /**
      * Send task IDs for a patient
      */
-    protected function sendTaskIds($kodebooking, &$stats, $dryRun = false)
+    protected function sendTaskIds($kodebooking, &$stats, $dryRun = false, $existingTaskIds = [])
     {
         $taskIds = [3, 4, 5, 6, 7]; // Task IDs to send
 
         foreach ($taskIds as $taskId) {
+            // Skip if already sent and not forcing --all
+            if (!$this->option('all') && in_array($taskId, $existingTaskIds)) {
+                $this->line("Task ID {$taskId} already sent for: {$kodebooking} (skipped)");
+                continue;
+            }
+
             if ($dryRun) {
                 $this->line("DRY RUN: Would send Task ID {$taskId} for: {$kodebooking}");
                 continue;

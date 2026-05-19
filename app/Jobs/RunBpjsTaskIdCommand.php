@@ -118,6 +118,10 @@ class RunBpjsTaskIdCommand implements ShouldQueue
                 $commandOptions['--mjkn'] = true;
             }
 
+            if (!empty($this->options['all'])) {
+                $commandOptions['--all'] = true;
+            }
+
             // Run the command with retry logic
             $maxAttempts = (int) env('BPJS_TASK_RETRY_MAX', 5);
             $retryInterval = (int) env('BPJS_TASK_RETRY_INTERVAL', 10); // seconds

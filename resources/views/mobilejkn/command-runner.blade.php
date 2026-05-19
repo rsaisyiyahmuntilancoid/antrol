@@ -84,6 +84,15 @@
                         <label for="mjkn_only" class="text-xs font-bold text-slate-500 cursor-pointer">M-JKN App Only</label>
                     </div>
 
+                    <div class="flex items-center gap-3 p-4 glass rounded-2xl">
+                        <div class="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 dark:bg-slate-800 transition-colors pointer-events-none">
+                            <input type="checkbox" id="all_patients" name="all_patients" class="sr-only peer pointer-events-auto">
+                            <div class="peer-checked:bg-emerald-600 absolute inset-0 rounded-full transition-colors"></div>
+                            <span class="absolute left-1 h-4 w-4 rounded-full bg-white transition-transform peer-checked:translate-x-5 shadow-sm"></span>
+                        </div>
+                        <label for="all_patients" class="text-xs font-bold text-slate-500 cursor-pointer">Resend All Patients</label>
+                    </div>
+
                     <button type="submit" class="w-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:opacity-90 shadow-xl transition-all">
                         Execute Sequence
                     </button>
@@ -228,7 +237,8 @@
             date_from: document.getElementById('date_from').value,
             date_to: document.getElementById('date_to').value,
             dry_run: document.getElementById('dry_run').checked,
-            mjkn: document.getElementById('mjkn_only').checked
+            mjkn: document.getElementById('mjkn_only').checked,
+            all: document.getElementById('all_patients').checked
         };
         
         const output = document.getElementById('outputArea');
