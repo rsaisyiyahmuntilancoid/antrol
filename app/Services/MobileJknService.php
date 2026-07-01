@@ -1302,10 +1302,14 @@ class MobileJknService
 
             $data = [];
             if ($response->status() == 200 && isset($responseData['metadata']['code']) && $responseData['metadata']['code'] == 200 && isset($responseData['response'])) {
-                $key = $this->generateDecryptionKey((string) $timestamp);
-                $decrypted = $this->stringDecrypt($key, $responseData['response']);
-                $decompressed = $this->decompress($decrypted);
-                $data = json_decode($decompressed, true) ?? [];
+                if (is_string($responseData['response'])) {
+                    $key = $this->generateDecryptionKey((string) $timestamp);
+                    $decrypted = $this->stringDecrypt($key, $responseData['response']);
+                    $decompressed = $this->decompress($decrypted);
+                    $data = json_decode($decompressed, true) ?? [];
+                } else {
+                    $data = $responseData['response'];
+                }
             }
 
             return [
@@ -1329,7 +1333,7 @@ class MobileJknService
         }
     }
 
-    public function getTaskIdRecord(string $noRawat, int $taskid = null): ?array
+    public function getTaskIdRecord(string $noRawat, ?int $taskid = null): ?array
     {
         try {
             $record = ReferensiMobilejknBpjsTaskid::where('no_rawat', $noRawat);
@@ -2061,6 +2065,161 @@ class MobileJknService
                 'error' => $e->getMessage()
             ]);
             
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'status_code' => 500
+            ];
+        }
+    }
+
+    /**
+     * Get official dashboard queue performance from BPJS by date
+     * 
+     * @param string $tanggal Format YYYY-MM-DD
+     * @param string $waktu Waktu server ('rs' or 'server')
+     * @return array
+     */
+    public function getDashboardPerTanggal(string $tanggal, string $waktu = 'rs'): array
+    {
+        try {
+            $timestamp = $this->getUtcTimestamp();
+            $signature = base64_encode($this->generateSignature($timestamp));
+            $url = $this->baseUrl . "/dashboard/waktutunggu/tanggal/{$tanggal}/waktu/{$waktu}";
+
+            Log::info('Mobile JKN Get Dashboard Per Tanggal Request', [
+                'tanggal' => $tanggal,
+                'waktu' => $waktu,
+                'timestamp' => (int) $timestamp
+            ]);
+
+            $response = Http::withHeaders([
+                'X-cons-id' => $this->consId,
+                'X-timestamp' => $timestamp,
+                'X-signature' => $signature,
+                'user_key' => $this->userKey,
+            ])->get($url);
+
+            $responseData = $response->json();
+
+            // Log to BPJS log database
+            $this->bpjsLogService->logRequest(
+                $response->status(),
+                json_encode(['tanggal' => $tanggal, 'waktu' => $waktu]),
+                json_encode($responseData),
+                $url,
+                'GET'
+            );
+
+            Log::info('Mobile JKN Get Dashboard Per Tanggal Response', [
+                'status' => $response->status(),
+                'response' => $responseData
+            ]);
+
+            $data = [];
+            if ($response->status() == 200 && isset($responseData['metadata']['code']) && $responseData['metadata']['code'] == 200 && isset($responseData['response'])) {
+                if (is_string($responseData['response'])) {
+                    $key = $this->generateDecryptionKey((string) $timestamp);
+                    $decrypted = $this->stringDecrypt($key, $responseData['response']);
+                    $decompressed = $this->decompress($decrypted);
+                    $data = json_decode($decompressed, true) ?? [];
+                } else {
+                    $data = $responseData['response'];
+                }
+            }
+
+            return [
+                'success' => $response->status() == 200 && isset($responseData['metadata']['code']) && $responseData['metadata']['code'] == 200,
+                'data' => $data,
+                'metadata' => $responseData['metadata'] ?? [],
+                'status_code' => $response->status()
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error getting dashboard per tanggal from Mobile JKN', [
+                'tanggal' => $tanggal,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'status_code' => 500
+            ];
+        }
+    }
+
+    /**
+     * Get official dashboard queue performance from BPJS by month and year
+     * 
+     * @param string $bulan Format MM (e.g. 01-12)
+     * @param string $tahun Format YYYY
+     * @param string $waktu Waktu server ('rs' or 'server')
+     * @return array
+     */
+    public function getDashboardPerBulan(string $bulan, string $tahun, string $waktu = 'rs'): array
+    {
+        try {
+            $timestamp = $this->getUtcTimestamp();
+            $signature = base64_encode($this->generateSignature($timestamp));
+            $url = $this->baseUrl . "/dashboard/waktutunggu/bulan/{$bulan}/tahun/{$tahun}/waktu/{$waktu}";
+
+            Log::info('Mobile JKN Get Dashboard Per Bulan Request', [
+                'bulan' => $bulan,
+                'tahun' => $tahun,
+                'waktu' => $waktu,
+                'timestamp' => (int) $timestamp
+            ]);
+
+            $response = Http::withHeaders([
+                'X-cons-id' => $this->consId,
+                'X-timestamp' => $timestamp,
+                'X-signature' => $signature,
+                'user_key' => $this->userKey,
+            ])->get($url);
+
+            $responseData = $response->json();
+
+            // Log to BPJS log database
+            $this->bpjsLogService->logRequest(
+                $response->status(),
+                json_encode(['bulan' => $bulan, 'tahun' => $tahun, 'waktu' => $waktu]),
+                json_encode($responseData),
+                $url,
+                'GET'
+            );
+
+            Log::info('Mobile JKN Get Dashboard Per Bulan Response', [
+                'status' => $response->status(),
+                'response' => $responseData
+            ]);
+
+            $data = [];
+            if ($response->status() == 200 && isset($responseData['metadata']['code']) && $responseData['metadata']['code'] == 200 && isset($responseData['response'])) {
+                if (is_string($responseData['response'])) {
+                    $key = $this->generateDecryptionKey((string) $timestamp);
+                    $decrypted = $this->stringDecrypt($key, $responseData['response']);
+                    $decompressed = $this->decompress($decrypted);
+                    $data = json_decode($decompressed, true) ?? [];
+                } else {
+                    $data = $responseData['response'];
+                }
+            }
+
+            return [
+                'success' => $response->status() == 200 && isset($responseData['metadata']['code']) && $responseData['metadata']['code'] == 200,
+                'data' => $data,
+                'metadata' => $responseData['metadata'] ?? [],
+                'status_code' => $response->status()
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error getting dashboard per bulan from Mobile JKN', [
+                'bulan' => $bulan,
+                'tahun' => $tahun,
+                'error' => $e->getMessage()
+            ]);
+
             return [
                 'success' => false,
                 'error' => $e->getMessage(),

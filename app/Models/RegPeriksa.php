@@ -113,4 +113,20 @@ class RegPeriksa extends Model
     {
         return $this->hasMany(ReferensiMobilejknBpjsTaskid::class, 'no_rawat', 'no_rawat');
     }
+
+    /**
+     * Get the pemeriksaanRalan for the RegPeriksa.
+     */
+    public function pemeriksaanRalan()
+    {
+        return $this->hasMany(PemeriksaanRalan::class, 'no_rawat', 'no_rawat');
+    }
+
+    /**
+     * Get the resepObat for the RegPeriksa.
+     */
+    public function resepObat()
+    {
+        return $this->hasMany(ResepObat::class, 'no_rawat', 'no_rawat');
+    }
 }

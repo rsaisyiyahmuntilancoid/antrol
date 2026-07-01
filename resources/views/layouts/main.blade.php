@@ -88,6 +88,7 @@
                         <a href="{{ route('regperiksa.index') }}" class="px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors {{ request()->routeIs('regperiksa.*') ? 'text-blue-600 dark:text-blue-400' : '' }}">Pasien</a>
                         <a href="{{ route('referensi.pendafataran') }}" class="px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors {{ request()->routeIs('referensi.*') ? 'text-blue-600 dark:text-blue-400' : '' }}">Sinkronisasi</a>
                         <a href="{{ route('taskid.logs') }}" class="px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors {{ request()->routeIs('taskid.*') ? 'text-blue-600 dark:text-blue-400' : '' }}">Logs</a>
+                        <a href="{{ route('monitoring.index') }}" class="px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors {{ request()->routeIs('monitoring.*') ? 'text-blue-600 dark:text-blue-400' : '' }}">Monitoring</a>
                     </div>
 
                     <div class="h-6 w-px bg-slate-200 dark:bg-slate-700 hidden lg:block"></div>
