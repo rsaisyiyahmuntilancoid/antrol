@@ -1,454 +1,664 @@
 <?php
-
 namespace App\Services;
 
+use App\Models\BpjsPatientVisit;
 use App\Models\RegPeriksa;
-use App\Models\PemeriksaanRalan;
-use App\Models\ResepObat;
-use App\Models\ReferensiMobilejknBpjs;
-use App\Models\ReferensiMobilejknBpjsTaskid;
+use App\Models\MapingDokterDpjpvclaim;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class FlowAnalyticsService
 {
-    /**
-     * Get aggregated flow analytics data for a given date range
-     *
-     * @param string $dateFrom
-     * @param string $dateTo
-     * @return array
-     */
-    public function getAnalyticsData(string $dateFrom, string $dateTo): array
+    const TASK_NAMES = [
+        1  => 'Kirim Antrian',
+        2  => 'Ambil Antrian',
+        3  => 'Mulai Waktu Tunggu Admistrasi',
+        4  => 'Akhir Waktu Tunggu Admistrasi',
+        5  => 'Mulai Waktu Tunggu Pelayanan',
+        6  => 'Akhir Waktu Tunggu Pelayanan',
+        7  => 'Selesai',
+        8  => 'Batal',
+        99 => 'Tidak Terdaftar',
+    ];
+
+    const MONITOR_TASKS          = [3, 4, 5, 6, 7];
+    const CACHE_DURATION_MINUTES = 15;
+
+    const ANOMALY_THRESHOLDS = [
+        'negative_duration'  => true,
+        'very_long'          => 120,
+        'checkin_to_nurse'   => 30,
+        'nurse_to_doctor'    => 60,
+        'doctor_to_pharmacy' => 30,
+        'pharmacy_to_done'   => 30,
+    ];
+
+    private function diffMinutes(?Carbon $t1, ?Carbon $t2): ?float
     {
-        $patients = $this->buildPatientFlowData($dateFrom, $dateTo);
-
-        // Aggregate stats
-        $globalStats = $this->computeGlobalStats($patients);
-        $clinicStats = $this->aggregateByClinic($patients);
-        $doctorStats = $this->aggregateByDoctor($patients);
-        $anomalies = $this->aggregateAnomalies($patients);
-
-        // Compute summary counts
-        $total = count($patients);
-        $bpjsWithBooking = 0;
-        $batal = 0;
-        $statusCounts = [
-            'Lengkap (3,4,5,6,7)' => 0,
-            'Lengkap (3,4,5,6)' => 0,
-            'Lengkap (3,4,5)' => 0,
-            'Belum Lengkap' => 0,
-            'Tidak Hadir / Batal' => 0,
-        ];
-
-        foreach ($patients as $p) {
-            if ($p['has_booking']) {
-                $bpjsWithBooking++;
-            }
-            if ($p['status'] === 'Tidak Hadir / Batal') {
-                $batal++;
-            }
-            $statusCounts[$p['status']] = ($statusCounts[$p['status']] ?? 0) + 1;
-        }
-
-        return [
-            'date_range' => ['from' => $dateFrom, 'to' => $dateTo],
-            'summary' => [
-                'total_patients' => $total,
-                'bpjs_with_booking' => $bpjsWithBooking,
-                'batal_patients' => $batal,
-            ],
-            'status_counts' => $statusCounts,
-            'global_stats' => $globalStats,
-            'clinic_stats' => $clinicStats,
-            'doctor_stats' => $doctorStats,
-            'anomalies' => $anomalies,
-            'patients' => $patients,
-        ];
-    }
-
-    /**
-     * Query all patient registrations and compute their flow timestamps & durations
-     *
-     * @param string $dateFrom
-     * @param string $dateTo
-     * @return array
-     */
-    private function buildPatientFlowData(string $dateFrom, string $dateTo): array
-    {
-        $registrations = RegPeriksa::with([
-            'pasien',
-            'poliklinik',
-            'dokter',
-            'referensiMobilejknBpjs',
-            'referensiMobilejknBpjsTaskid',
-            'pemeriksaanRalan.petugas',
-            'pemeriksaanRalan.dokter',
-            'resepObat'
-        ])
-        ->whereBetween('tgl_registrasi', [$dateFrom, $dateTo])
-        ->where('kd_pj', 'BPJ') // Insurance code for BPJS
-        ->orderBy('tgl_registrasi', 'asc')
-        ->orderBy('jam_reg', 'asc')
-        ->get();
-
-        $patientFlows = [];
-
-        foreach ($registrations as $reg) {
-            $realTimestamps = $this->getRealTimestamps($reg);
-            $sentTimestamps = $this->getSentTimestamps($reg);
-            $durations = $this->computeDurations($realTimestamps);
-            $status = $this->determineFlowStatus($realTimestamps, $reg->stts);
-            $patientAnomalies = $this->detectPatientAnomalies($realTimestamps, $sentTimestamps, $durations);
-
-            $patientFlows[] = [
-                'no_rawat' => $reg->no_rawat,
-                'no_rkm_medis' => $reg->no_rkm_medis,
-                'nm_pasien' => $reg->pasien->nm_pasien ?? 'N/A',
-                'nm_poli' => $reg->poliklinik->nm_poli ?? 'N/A',
-                'nm_dokter' => $reg->dokter->nm_dokter ?? 'N/A',
-                'jam_reg' => $reg->jam_reg ? ($reg->jam_reg instanceof Carbon ? $reg->jam_reg->format('H:i') : substr((string)$reg->jam_reg, 0, 5)) : '--:--',
-                'tgl_registrasi' => $reg->tgl_registrasi ? ($reg->tgl_registrasi instanceof Carbon ? $reg->tgl_registrasi->toDateString() : str_replace(' 00:00:00', '', (string)$reg->tgl_registrasi)) : '',
-                'has_booking' => $reg->referensiMobilejknBpjs ? true : false,
-                'kode_booking' => $reg->referensiMobilejknBpjs->nobooking ?? null,
-                'timestamps_real' => array_map(function ($c) {
-                    return $c ? $c->toDateTimeString() : null;
-                }, $realTimestamps),
-                'timestamps_sent' => array_map(function ($c) {
-                    return $c ? $c->toDateTimeString() : null;
-                }, $sentTimestamps),
-                'durations' => $durations,
-                'status' => $status,
-                'anomalies' => $patientAnomalies,
-                'has_anomalies' => count($patientAnomalies) > 0,
-            ];
-        }
-
-        return $patientFlows;
-    }
-
-    private function parseDateTime($date, $time): ?Carbon
-    {
-        if (!$date || !$time) return null;
-        
-        $dateStr = $date instanceof Carbon ? $date->toDateString() : str_replace(' 00:00:00', '', (string)$date);
-        $timeStr = $time instanceof Carbon ? $time->toTimeString() : (string)$time;
-        
-        if ($dateStr === '0000-00-00' || str_starts_with($dateStr, '0000') || str_starts_with($dateStr, '-')) {
+        if (!$t1 || !$t2) {
             return null;
         }
-        
-        try {
-            $parsed = Carbon::parse($dateStr . ' ' . $timeStr, 'Asia/Jakarta');
-            if ($parsed->year < 2000) {
-                return null;
-            }
-            return $parsed;
-        } catch (\Exception $e) {
-            return null;
-        }
+        return (float) $t2->diffInMinutes($t1, false);
     }
 
-    /**
-     * Get real timestamps directly from hospital tables (SIMRS database)
-     *
-     * @param RegPeriksa $reg
-     * @return array
-     */
-    public function getRealTimestamps(RegPeriksa $reg): array
+    public function computeDurationsFromTaskData(?array $taskData): array
     {
-        $tglRegistrasi = $reg->tgl_registrasi;
-
-        // Task 3: Check-in / Admisi
-        $t3 = null;
-        if ($reg->referensiMobilejknBpjs && $reg->referensiMobilejknBpjs->validasi) {
-            try {
-                $t3 = Carbon::parse($reg->referensiMobilejknBpjs->validasi, 'Asia/Jakarta');
-            } catch (\Exception $e) {}
-        }
-        
-        if (!$t3) {
-            $t3 = $this->parseDateTime($tglRegistrasi, $reg->jam_reg);
-        }
-
-        // Task 4: Perawat mulai
-        $t4 = null;
-        $pemeriksaanPetugas = $reg->pemeriksaanRalan
-            ->filter(function ($p) {
-                return $p->petugas !== null || !empty($p->nip);
-            })
-            ->sortBy(function ($p) {
-                return (string)$p->jam_rawat;
-            })
-            ->first();
-        if ($pemeriksaanPetugas) {
-            $t4 = $this->parseDateTime($pemeriksaanPetugas->tgl_perawatan ?: $tglRegistrasi, $pemeriksaanPetugas->jam_rawat);
-        }
-
-        // Task 5: Dokter selesai
-        $t5 = null;
-        $pemeriksaanDokter = $reg->pemeriksaanRalan
-            ->filter(function ($p) {
-                return $p->dokter !== null || !empty($p->nip);
-            })
-            ->sortByDesc(function ($p) {
-                return (string)$p->jam_rawat;
-            })
-            ->first();
-        if ($pemeriksaanDokter) {
-            $t5 = $this->parseDateTime($pemeriksaanDokter->tgl_perawatan ?: $tglRegistrasi, $pemeriksaanDokter->jam_rawat);
-        }
-
-        // Task 6: Resep obat dibuat
-        $t6 = null;
-        $resep = $reg->resepObat
-            ->sortByDesc(function ($r) {
-                return (string)$r->jam;
-            })
-            ->first();
-        if ($resep) {
-            $t6 = $this->parseDateTime($resep->tgl_perawatan ?: $tglRegistrasi, $resep->jam);
-        }
-
-        // Task 7: Selesai penyerahan obat
-        $t7 = null;
-        if ($resep) {
-            $t7 = $this->parseDateTime($resep->tgl_penyerahan, $resep->jam_penyerahan);
-        }
-
-        return [
-            3 => $t3,
-            4 => $t4,
-            5 => $t5,
-            6 => $t6,
-            7 => $t7,
-        ];
-    }
-
-    /**
-     * Get sent timestamps from referensi_mobilejkn_bpjs_taskid table
-     *
-     * @param RegPeriksa $reg
-     * @return array
-     */
-    public function getSentTimestamps(RegPeriksa $reg): array
-    {
-        $sent = [
+        $tasks = [
             3 => null,
             4 => null,
             5 => null,
             6 => null,
             7 => null,
         ];
-
-        foreach ($reg->referensiMobilejknBpjsTaskid as $task) {
-            $taskId = (int)$task->taskid;
-            if (isset($sent[$taskId])) {
-                $sent[$taskId] = $task->waktu;
+        
+        foreach (($taskData ?? []) as $t) {
+            $tid = (int)$t['taskid'];
+            $ms = isset($t['waktu']) ? (int)$t['waktu'] : null;
+            if ($ms && $ms > 0 && isset($tasks[$tid])) {
+                $tasks[$tid] = Carbon::createFromTimestampMs($ms, 'Asia/Jakarta');
             }
         }
 
-        return $sent;
+        $durations = [
+            'checkin_to_nurse'   => $this->diffMinutes($tasks[3], $tasks[4]),
+            'nurse_to_doctor'    => $this->diffMinutes($tasks[4], $tasks[5]),
+            'doctor_to_pharmacy' => $this->diffMinutes($tasks[5], $tasks[6]),
+            'pharmacy_to_done'   => $this->diffMinutes($tasks[6], $tasks[7]),
+            'total_time'         => $this->diffMinutes($tasks[3], $tasks[7] ?? $tasks[5] ?? null),
+            'waktu_tunggu_poli'    => $this->diffMinutes($tasks[3], $tasks[4]),
+            'waktu_layan_poli'     => $this->diffMinutes($tasks[4], $tasks[5]),
+            'waktu_tunggu_farmasi' => $this->diffMinutes($tasks[5], $tasks[6]),
+            'waktu_layan_farmasi'  => $this->diffMinutes($tasks[6], $tasks[7]),
+            'total_waktu_rs'       => $this->diffMinutes($tasks[3], $tasks[7] ?? $tasks[5] ?? null),
+        ];
+
+        return $durations;
     }
 
-    /**
-     * Compute differences in minutes between steps
-     *
-     * @param array $timestamps
-     * @return array
-     */
+    public function determineStatusFromTaskData(?array $taskData): string
+    {
+        if (!$taskData) return 'Belum Terkirim';
+        
+        $taskIds = array_column($taskData, 'taskid');
+        
+        if (in_array(8, $taskIds)) return 'Tidak Hadir / Batal';
+        if (in_array(99, $taskIds)) return 'Tidak Terdaftar';
+        
+        $has = fn($id) => in_array($id, $taskIds);
+        
+        if ($has(7)) return 'completed';
+        if ($has(6)) return 'pharmacy';
+        if ($has(5)) return 'doctor';
+        if ($has(4)) return 'nurse';
+        if ($has(3)) return 'checkin';
+        
+        return 'waiting';
+    }
+
+    public function syncTodayIfEmpty(string $date): array
+    {
+        $kdPj = config('mobilejkn.kd_pj', 'BPJ');
+        $excludePoli = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
+        $excludePoliArray = array_filter(explode(',', $excludePoli));
+
+        $query = RegPeriksa::with(['referensiMobilejknBpjs'])
+            ->where('tgl_registrasi', $date)
+            ->where('kd_pj', $kdPj);
+
+        if (!empty($excludePoliArray)) {
+            $query->whereNotIn('kd_poli', $excludePoliArray);
+        }
+
+        $registrations = $query->get();
+        $total = $registrations->count();
+        $synced = 0;
+
+        $startTime = microtime(true);
+
+        foreach ($registrations as $reg) {
+            $kodebooking = $reg->referensiMobilejknBpjs->nobooking ?? $reg->no_rawat;
+            if (!$kodebooking) {
+                continue;
+            }
+
+            $result = $this->syncSinglePatient($kodebooking, $reg->no_rawat);
+            if ($result['success']) {
+                $synced++;
+            }
+
+            usleep(250000); // Sleep 250ms to be safe and avoid rate limit
+
+            // Limit execution time to 5 seconds to avoid blocking page load
+            if ((microtime(true) - $startTime) >= 5.0) {
+                break;
+            }
+        }
+
+        return ['total' => $total, 'synced' => $synced];
+    }
+
+    public function syncDatePatientsDirectly(string $date): array
+    {
+        $kdPj = config('mobilejkn.kd_pj', 'BPJ');
+        $excludePoli = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
+        $excludePoliArray = array_filter(explode(',', $excludePoli));
+
+        $query = RegPeriksa::with(['referensiMobilejknBpjs'])
+            ->where('tgl_registrasi', $date)
+            ->where('kd_pj', $kdPj);
+
+        if (!empty($excludePoliArray)) {
+            $query->whereNotIn('kd_poli', $excludePoliArray);
+        }
+
+        $registrations = $query->get();
+        $total = $registrations->count();
+        $synced = 0;
+        $failed = 0;
+
+        foreach ($registrations as $reg) {
+            $kodebooking = $reg->referensiMobilejknBpjs->nobooking ?? $reg->no_rawat;
+            if (!$kodebooking) {
+                continue;
+            }
+
+            $result = $this->syncSinglePatient($kodebooking, $reg->no_rawat);
+            if ($result['success']) {
+                $synced++;
+            } else {
+                $failed++;
+            }
+
+            usleep(250000); // Sleep 250ms to be safe and avoid rate limit
+        }
+
+        return ['total' => $total, 'synced' => $synced, 'failed' => $failed];
+    }
+
+    public function getAnalyticsData(?string $dateFrom = null, ?string $dateTo = null): array
+    {
+        $dateFrom = $dateFrom ?: Carbon::now()->toDateString();
+        $dateTo   = $dateTo ?: Carbon::now()->toDateString();
+
+        $dateFromObj = Carbon::parse($dateFrom);
+        $dateToObj   = Carbon::parse($dateTo);
+        $todayStr    = Carbon::now()->toDateString();
+
+        $kdPj = config('mobilejkn.kd_pj', 'BPJ');
+        $excludePoli = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
+        $excludePoliArray = array_filter(explode(',', $excludePoli));
+
+        // Group & count registrations by date in SIMRS (filtered by BPJ and excluding polikliniks)
+        $simrsQuery = RegPeriksa::whereBetween('tgl_registrasi', [$dateFrom, $dateTo])
+            ->where('kd_pj', $kdPj);
+        if (!empty($excludePoliArray)) {
+            $simrsQuery->whereNotIn('kd_poli', $excludePoliArray);
+        }
+        $simrsRegistrationsByDate = $simrsQuery->groupBy('tgl_registrasi')
+            ->selectRaw('tgl_registrasi, count(*) as count')
+            ->pluck('count', 'tgl_registrasi')
+            ->toArray();
+
+        // 1. If date range is today and cache count is 0, trigger syncTodayIfEmpty
+        if ($dateFrom === $todayStr && $dateTo === $todayStr) {
+            $existingCount = BpjsPatientVisit::where('tanggalperiksa', $todayStr)->count();
+            if ($existingCount === 0 && isset($simrsRegistrationsByDate[$todayStr]) && $simrsRegistrationsByDate[$todayStr] > 0) {
+                $this->syncTodayIfEmpty($todayStr);
+            }
+        }
+
+        // 2. Load visits from bpjs_patient_visits cache table (strictly source from BPJS) with eager loading
+        $visits = BpjsPatientVisit::with([
+            'regPeriksa.pasien',
+            'regPeriksa.poliklinik',
+            'regPeriksa.dokter',
+            'regPeriksa.referensiMobilejknBpjs',
+            'regPeriksa.pemeriksaanRalan',
+            'regPeriksa.resepObat'
+        ])
+            ->whereBetween('tanggalperiksa', [$dateFrom, $dateTo])
+            ->orderBy('tanggalperiksa')
+            ->orderBy('id')
+            ->get();
+
+        // Load doctor mappings from maping_dokter_dpjpvclaim
+        $doctorMappings = MapingDokterDpjpvclaim::with('dokter')->get()->keyBy('kd_dokter_bpjs');
+
+        // 3. Get visits count grouped by date
+        $visitsCountByDate = BpjsPatientVisit::whereBetween('tanggalperiksa', [$dateFrom, $dateTo])
+            ->groupBy('tanggalperiksa')
+            ->selectRaw('tanggalperiksa, count(*) as count')
+            ->pluck('count', 'tanggalperiksa')
+            ->toArray();
+
+        $daysInRange = $dateFromObj->diffInDays($dateToObj) + 1;
+        $missingDates = array_keys(array_diff_key($simrsRegistrationsByDate, $visitsCountByDate));
+
+        // 4. Build flows from JKN task data
+        $patientFlows = [];
+        foreach ($visits as $visit) {
+            /** @var BpjsPatientVisit $visit */
+            $realTimestamps = $visit->regPeriksa 
+                ? $this->getRealTimestamps($visit->regPeriksa) 
+                : [1 => null, 2 => null, 3 => null, 4 => null, 5 => null, 6 => null, 7 => null];
+
+            $taskData = $visit->task_data;
+            $hasBpjsData = ($taskData !== null && count($taskData) > 0);
+            $syncStatus = $hasBpjsData ? 'synced' : 'pending';
+
+            if ($hasBpjsData) {
+                $durations = $this->computeDurationsFromTaskData($taskData);
+                $status = $this->determineStatusFromTaskData($taskData);
+            } else {
+                $durations = [
+                    'checkin_to_nurse'   => null,
+                    'nurse_to_doctor'    => null,
+                    'doctor_to_pharmacy' => null,
+                    'pharmacy_to_done'   => null,
+                    'total_time'         => null,
+                    'waktu_tunggu_poli'    => null,
+                    'waktu_layan_poli'     => null,
+                    'waktu_tunggu_farmasi' => null,
+                    'waktu_layan_farmasi'  => null,
+                    'total_waktu_rs'       => null,
+                ];
+                $status = 'Belum Terkirim';
+            }
+
+            $bpjsTimestamps = $this->getBpjsTimestamps($visit);
+            $comparison = $this->compareBpjsAndSimrs($bpjsTimestamps, $realTimestamps);
+            $anomalies = $this->detectPatientAnomalies($realTimestamps, $bpjsTimestamps, $durations);
+
+            // Resolve doctor name using SIMRS first, then mapping table, then BPJS namadokter
+            $docName = 'N/A';
+            if ($visit->regPeriksa && $visit->regPeriksa->dokter) {
+                $docName = $visit->regPeriksa->dokter->nm_dokter;
+            } elseif ($visit->kodedokter && isset($doctorMappings[$visit->kodedokter]) && $doctorMappings[$visit->kodedokter]->dokter) {
+                $docName = $doctorMappings[$visit->kodedokter]->dokter->nm_dokter;
+            } else {
+                $docName = $visit->namadokter ?? 'N/A';
+            }
+
+            $patientFlows[] = [
+                'no_rawat'        => $visit->no_rawat,
+                'no_rkm_medis'    => $visit->norm,
+                'nm_pasien'       => $visit->regPeriksa->pasien->nm_pasien ?? 'N/A',
+                'nm_poli'         => $visit->namapoli ?? ($visit->regPeriksa->poliklinik->nm_poli ?? 'N/A'),
+                'nm_dokter'       => $docName,
+                'jam_reg'         => $visit->regPeriksa->jam_reg ? (substr((string) $visit->regPeriksa->jam_reg, 0, 5)) : '00:00',
+                'tgl_registrasi'  => $visit->tanggalperiksa ? ($visit->tanggalperiksa instanceof Carbon ? $visit->tanggalperiksa->toDateString() : (string)$visit->tanggalperiksa) : '',
+                'has_booking'     => (strpos($visit->kodebooking, '/') === false),
+                'kode_booking'    => $visit->kodebooking,
+                'timestamps_real' => array_map(fn($c) => $c?->toDateTimeString(), $realTimestamps),
+                'timestamps_sent' => array_map(fn($c) => $c?->toDateTimeString(), $bpjsTimestamps),
+                'durations'       => $durations,
+                'status'          => $status,
+                'anomalies'       => $anomalies,
+                'has_anomalies'   => count($anomalies) > 0,
+                'comparison'      => $comparison,
+                'is_bpjs_source'  => $syncStatus === 'synced',
+                'sync_status'     => $syncStatus,
+                'last_sync'       => $visit->last_sync?->toDateTimeString(),
+            ];
+        }
+
+        // Aggregate statistics using the computed JKN flows
+        $stats = $this->calculateStatistics($patientFlows);
+        $clinicStats = $this->getClinicStatistics($patientFlows);
+        $doctorStats = $this->getDoctorStatistics($patientFlows);
+        $timeDist = $this->getTimeDistribution($patientFlows);
+        $anomalies = $this->aggregateAnomalies($patientFlows);
+        $globalStats = $this->calculateGlobalStats($patientFlows);
+
+        // Count cancelled patients
+        $batalCount = collect($patientFlows)->where('status', 'Tidak Hadir / Batal')->count();
+
+        return [
+            'date_from'               => $dateFrom,
+            'date_to'                 => $dateTo,
+            'days_in_range'           => $daysInRange,
+            'days_with_registrations' => count($simrsRegistrationsByDate),
+            'days_with_data'          => count($visitsCountByDate),
+            'missing_dates'           => $missingDates,
+            'patients'                => $patientFlows,
+            'stats'                   => $stats,
+            'clinic_stats'            => $clinicStats,
+            'doctor_stats'            => $doctorStats,
+            'time_distribution'       => $timeDist,
+            'global_stats'            => $globalStats,
+            'anomalies'               => $anomalies,
+            'summary'                 => [
+                'total_patients'     => $stats['total_patients'],
+                'batal_patients'     => $batalCount,
+                'completed_patients' => $stats['completed'],
+                'waiting_patients'   => $stats['waiting'] + $stats['in_progress'],
+            ],
+        ];
+    }
+
+    private function calculateGlobalStats(array $patientFlows): array
+    {
+        $stats = [
+            'waktu_tunggu_poli'    => ['median' => 0, 'count' => 0],
+            'waktu_layan_poli'     => ['median' => 0, 'count' => 0],
+            'waktu_tunggu_farmasi' => ['median' => 0, 'count' => 0],
+            'waktu_layan_farmasi'  => ['median' => 0, 'count' => 0],
+            'total_waktu_rs'       => ['median' => 0, 'count' => 0],
+        ];
+
+        $durationsByKey = [];
+        foreach ($stats as $key => $_) {
+            $durationsByKey[$key] = [];
+        }
+
+        foreach ($patientFlows as $p) {
+            foreach (array_keys($stats) as $key) {
+                if (isset($p['durations'][$key]) && $p['durations'][$key] !== null) {
+                    $durationsByKey[$key][] = $p['durations'][$key];
+                }
+            }
+        }
+
+        foreach ($stats as $key => &$stat) {
+            $durations     = $durationsByKey[$key];
+            $stat['count'] = count($durations);
+            if ($stat['count'] > 0) {
+                sort($durations);
+                $mid            = floor(($stat['count'] - 1) / 2);
+                $stat['median'] = $stat['count'] % 2
+                    ? $durations[$mid]
+                    : (($durations[$mid] + $durations[$mid + 1]) / 2);
+                $stat['median'] = round($stat['median'], 1);
+            }
+        }
+
+        return $stats;
+    }
+
+    public function syncSinglePatient(string $kodebooking, string $noRawat): array
+    {
+        try {
+            $reg = RegPeriksa::with([
+                'referensiMobilejknBpjs',
+                'pasien',
+                'poliklinik',
+                'dokter',
+            ])->find($noRawat);
+            if (! $reg) {
+                return ['success' => false, 'message' => 'Pasien tidak ditemukan'];
+            }
+
+            $listTaskResult = app(MobileJknService::class)->getListTask($kodebooking);
+            $visitData      = [
+                'kodebooking'    => $kodebooking,
+                'last_sync'      => now(),
+                'no_rawat'       => $reg->no_rawat,
+                'tanggalperiksa' => $reg->tgl_registrasi,
+            ];
+
+            if ($reg->referensiMobilejknBpjs) {
+                $visitData = array_merge($visitData, [
+                    'nomorkartu'       => $reg->referensiMobilejknBpjs->nomorkartu ?? null,
+                    'nik'              => $reg->referensiMobilejknBpjs->nik ?? null,
+                    'nohp'             => $reg->referensiMobilejknBpjs->nohp ?? null,
+                    'norm'             => $reg->referensiMobilejknBpjs->norm ?? null,
+                    'kodepoli'         => $reg->referensiMobilejknBpjs->kodepoli ?? null,
+                    'namapoli'         => $reg->poliklinik->nm_poli ?? null,
+                    'kodedokter'       => $reg->referensiMobilejknBpjs->kodedokter ?? null,
+                    'namadokter'       => $reg->dokter->nm_dokter ?? null,
+                    'jampraktek'       => $reg->referensiMobilejknBpjs->jampraktek ?? null,
+                    'jeniskunjungan'   => $reg->referensiMobilejknBpjs->jeniskunjungan ? intval($reg->referensiMobilejknBpjs->jeniskunjungan) : null,
+                    'nomorreferensi'   => $reg->referensiMobilejknBpjs->nomorreferensi ?? null,
+                    'nomorantrean'     => $reg->referensiMobilejknBpjs->nomorantrean ?? null,
+                    'angkaantrean'     => $reg->referensiMobilejknBpjs->angkaantrean ?? null,
+                    'estimasidilayani' => $reg->referensiMobilejknBpjs->estimasidilayani ?? null,
+                    'sisakuotajkn'     => $reg->referensiMobilejknBpjs->sisakuotajkn ?? null,
+                    'kuotajkn'         => $reg->referensiMobilejknBpjs->kuotajkn ?? null,
+                    'sisakuotanonjkn'  => $reg->referensiMobilejknBpjs->sisakuotanonjkn ?? null,
+                    'kuotanonjkn'      => $reg->referensiMobilejknBpjs->kuotanonjkn ?? null,
+                    'status'           => $reg->referensiMobilejknBpjs->status ?? null,
+                    'validasi'         => $reg->referensiMobilejknBpjs->validasi ?? null,
+                ]);
+            } else {
+                $visitData = array_merge($visitData, [
+                    'nomorkartu'       => $reg->pasien->no_peserta ?? null,
+                    'nik'              => $reg->pasien->no_ktp ?? null,
+                    'nohp'             => $reg->pasien->no_tlp ?? null,
+                    'norm'             => $reg->no_rkm_medis,
+                    'kodepoli'         => $reg->kd_poli,
+                    'namapoli'         => $reg->poliklinik->nm_poli ?? null,
+                    'kodedokter'       => $reg->kd_dokter,
+                    'namadokter'       => $reg->dokter->nm_dokter ?? null,
+                    'nomorantrean'     => $reg->no_reg,
+                    'angkaantrean'     => intval($reg->no_reg),
+                ]);
+            }
+
+            if (! $listTaskResult['success']) {
+                return [
+                    'success' => false,
+                    'message' => $listTaskResult['message'] ?? $listTaskResult['error'] ?? 'Gagal mengambil data dari BPJS'
+                ];
+            }
+
+            $visitData['task_data'] = $listTaskResult['data'] ?? [];
+
+            BpjsPatientVisit::updateOrCreate(['kodebooking' => $kodebooking], $visitData);
+
+            $cachedVisit    = BpjsPatientVisit::where('kodebooking', $kodebooking)->first();
+            $realTimestamps = $this->getRealTimestamps($reg);
+            $bpjsTimestamps = $this->getBpjsTimestamps($cachedVisit);
+            $durations      = $this->computeDurations($bpjsTimestamps);
+            $status         = $this->determineFlowStatus($bpjsTimestamps, $reg->stts ?? '');
+            $anomalies      = $this->detectPatientAnomalies($realTimestamps, $bpjsTimestamps, $durations);
+            $comparison     = $this->compareBpjsAndSimrs($bpjsTimestamps, $realTimestamps);
+
+            // Map durations
+            $mappedDurations = array_merge($durations, [
+                'waktu_tunggu_poli'    => $durations['checkin_to_nurse'],
+                'waktu_layan_poli'     => $durations['nurse_to_doctor'],
+                'waktu_tunggu_farmasi' => $durations['doctor_to_pharmacy'],
+                'waktu_layan_farmasi'  => $durations['pharmacy_to_done'],
+                'total_waktu_rs'       => $durations['total_time'],
+            ]);
+
+            return [
+                'success' => true,
+                'patient' => [
+                    'kode_booking'    => $kodebooking,
+                    'timestamps_sent' => array_map(fn($c) => $c?->toDateTimeString(), $bpjsTimestamps),
+                    'durations'       => $mappedDurations,
+                    'status'          => $status,
+                    'anomalies'       => $anomalies,
+                    'has_anomalies'   => count($anomalies) > 0,
+                    'comparison'      => $comparison,
+                    'is_bpjs_source'  => true,
+                    'sync_status'     => 'synced',
+                    'last_sync'       => $cachedVisit->last_sync->toDateTimeString(),
+                ],
+            ];
+        } catch (\Exception $e) {
+            Log::error("Error syncing patient {$kodebooking}: " . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    public function getBpjsTimestamps(BpjsPatientVisit $visit): array
+    {
+        $timestamps = [1 => null, 2 => null, 3 => null, 4 => null, 5 => null, 6 => null, 7 => null];
+        $taskData   = $visit->task_data ?? [];
+        if (! is_array($taskData)) {
+            $taskData = json_decode($taskData, true) ?: [];
+        }
+        foreach ($taskData as $task) {
+            $taskId = $task['taskid'] ?? null;
+            $waktu  = $task['waktu'] ?? null;
+            if ($taskId && $waktu && isset($timestamps[$taskId])) {
+                try {
+                    $timestamps[$taskId] = Carbon::createFromTimestampMs((int)$waktu, 'Asia/Jakarta');
+                } catch (\Exception $e) {
+                    // ignore invalid dates
+                }
+            }
+        }
+        return $timestamps;
+    }
+
+    public function compareBpjsAndSimrs(array $bpjsTimestamps, array $simrsTimestamps): array
+    {
+        $comparison = [];
+        foreach (self::MONITOR_TASKS as $taskId) {
+            $bpjsTime    = $bpjsTimestamps[$taskId];
+            $simrsTime   = $simrsTimestamps[$taskId];
+            $diffMinutes = null;
+            $status      = 'missing';
+
+            if ($bpjsTime && $simrsTime) {
+                $diffMinutes = $bpjsTime->diffInMinutes($simrsTime, false);
+                $status      = abs($diffMinutes) <= 5 ? 'match' : 'mismatch';
+            } elseif ($bpjsTime) {
+                $status = 'bpjs_only';
+            } elseif ($simrsTime) {
+                $status = 'simrs_only';
+            }
+
+            $comparison[$taskId] = [
+                'status'       => $status,
+                'diff_minutes' => $diffMinutes,
+                'task_name'    => self::TASK_NAMES[$taskId],
+            ];
+        }
+        return $comparison;
+    }
+
+    public function getRealTimestamps(RegPeriksa $reg): array
+    {
+        $timestamps = [
+            1 => null,
+            2 => null,
+            3 => null,
+            4 => null,
+            5 => null,
+            6 => null,
+            7 => null,
+        ];
+        $timestamps[1] = $reg->tgl_registrasi ? $this->parseTimestamp($reg->tgl_registrasi, $reg->jam_reg) : null;
+        $timestamps[2] = $timestamps[1];
+        
+        // If registered with Mobile JKN, use check-in (validasi) time as Task 3
+        if ($reg->referensiMobilejknBpjs && $reg->referensiMobilejknBpjs->validasi) {
+            $timestamps[3] = Carbon::parse($reg->referensiMobilejknBpjs->validasi);
+        } else {
+            $timestamps[3] = $timestamps[1];
+        }
+
+        $pemeriksaan = $reg->pemeriksaanRalan;
+        if ($pemeriksaan && $pemeriksaan->isNotEmpty()) {
+            $first         = $pemeriksaan->sortBy('tgl_periksa')->first();
+            $last          = $pemeriksaan->sortByDesc('tgl_periksa')->first();
+            $timestamps[4] = $this->parseTimestamp($first->tgl_periksa, $first->jam_periksa);
+            $timestamps[5] = $this->parseTimestamp($last->tgl_periksa, $last->jam_periksa);
+        }
+
+        $resep = $reg->resepObat;
+        if ($resep && $resep->isNotEmpty()) {
+            $first         = $resep->sortBy('tgl_periksa')->first();
+            $last          = $resep->sortByDesc('tgl_periksa')->first();
+            $timestamps[6] = $this->parseTimestamp($first->tgl_periksa, $first->jam);
+            $timestamps[7] = $this->parseTimestamp($last->tgl_periksa, $last->jam);
+        }
+
+        if (empty($timestamps[4]) && $reg->stts == 'Sudah') {
+            $timestamps[4] = $timestamps[3];
+        }
+        if (empty($timestamps[5]) && $reg->stts == 'Sudah') {
+            $timestamps[5] = $timestamps[4];
+        }
+        if (empty($timestamps[6]) && $reg->stts == 'Sudah') {
+            $timestamps[6] = $timestamps[5];
+        }
+        if (empty($timestamps[7]) && $reg->stts == 'Sudah') {
+            $timestamps[7] = $timestamps[6];
+        }
+
+        return $timestamps;
+    }
+
+    private function parseTimestamp($date, $time = null): ?Carbon
+    {
+        if (! $date) {
+            return null;
+        }
+
+        $dateStr = $date instanceof Carbon ? $date->toDateString() : (string) $date;
+        $timeStr = $time ? (string) $time : '00:00:00';
+        $dateStr = explode(' ', $dateStr)[0];
+
+        try {
+            return Carbon::parse("{$dateStr} {$timeStr}");
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
     public function computeDurations(array $timestamps): array
     {
-        return [
-            'waktu_tunggu_poli'    => $this->diffMinutes($timestamps[3], $timestamps[4]),
-            'waktu_layan_poli'     => $this->diffMinutes($timestamps[4], $timestamps[5]),
-            'waktu_tunggu_farmasi' => $this->diffMinutes($timestamps[5], $timestamps[6]),
-            'waktu_layan_farmasi'  => $this->diffMinutes($timestamps[6], $timestamps[7]),
-            'total_waktu_rs'       => $this->diffMinutes($timestamps[3], $timestamps[7] ?? $timestamps[5]),
+        $durations = [
+            'checkin_to_nurse'   => null,
+            'nurse_to_doctor'    => null,
+            'doctor_to_pharmacy' => null,
+            'pharmacy_to_done'   => null,
+            'total_time'         => null,
         ];
+
+        if ($timestamps[3] && $timestamps[4]) {
+            $durations['checkin_to_nurse'] = $timestamps[4]->diffInMinutes($timestamps[3]);
+        }
+        if ($timestamps[4] && $timestamps[5]) {
+            $durations['nurse_to_doctor'] = $timestamps[5]->diffInMinutes($timestamps[4]);
+        }
+        if ($timestamps[5] && $timestamps[6]) {
+            $durations['doctor_to_pharmacy'] = $timestamps[6]->diffInMinutes($timestamps[5]);
+        }
+        if ($timestamps[6] && $timestamps[7]) {
+            $durations['pharmacy_to_done'] = $timestamps[7]->diffInMinutes($timestamps[6]);
+        }
+        if ($timestamps[3] && $timestamps[7]) {
+            $durations['total_time'] = $timestamps[7]->diffInMinutes($timestamps[3]);
+        }
+
+        return $durations;
     }
 
-    /**
-     * Determine status completeness category
-     *
-     * @param array $timestamps
-     * @param string $stts
-     * @return string
-     */
-    public function determineFlowStatus(array $timestamps, string $stts): string
+    private function determineFlowStatus(array $bpjsTimestamps, string $stts): string
     {
-        if ($stts === 'Batal') {
-            return 'Tidak Hadir / Batal';
+        if ($bpjsTimestamps[7]) {
+            return 'completed';
         }
 
-        if ($timestamps[3] && $timestamps[4] && $timestamps[5] && $timestamps[6] && $timestamps[7]) {
-            return 'Lengkap (3,4,5,6,7)';
+        if ($bpjsTimestamps[6]) {
+            return 'pharmacy';
         }
 
-        if ($timestamps[3] && $timestamps[4] && $timestamps[5] && $timestamps[6]) {
-            return 'Lengkap (3,4,5,6)';
+        if ($bpjsTimestamps[5]) {
+            return 'doctor';
         }
 
-        if ($timestamps[3] && $timestamps[4] && $timestamps[5]) {
-            return 'Lengkap (3,4,5)';
+        if ($bpjsTimestamps[4]) {
+            return 'nurse';
         }
 
-        return 'Belum Lengkap';
+        if ($bpjsTimestamps[3]) {
+            return 'checkin';
+        }
+
+        if ($stts == 'Sudah') {
+            return 'completed';
+        }
+
+        return 'waiting';
     }
 
-    /**
-     * Calculate descriptive statistics
-     *
-     * @param array $values
-     * @return array
-     */
-    public function computeStats(array $values): array
-    {
-        $values = array_filter($values, function ($v) {
-            return $v !== null;
-        });
-
-        $count = count($values);
-        if ($count === 0) {
-            return [
-                'count' => 0,
-                'avg' => 0,
-                'median' => 0,
-                'min' => 0,
-                'max' => 0,
-                'p90' => 0,
-            ];
-        }
-
-        sort($values);
-        $sum = array_sum($values);
-        $avg = $sum / $count;
-
-        // Median
-        $middle = floor(($count - 1) / 2);
-        if ($count % 2) {
-            $median = $values[$middle];
-        } else {
-            $low = $values[$middle];
-            $high = $values[$middle + 1];
-            $median = ($low + $high) / 2;
-        }
-
-        $min = min($values);
-        $max = max($values);
-
-        // Percentile 90
-        $p90Index = min((int)round(0.9 * ($count - 1)), $count - 1);
-        $p90 = $values[$p90Index];
-
-        return [
-            'count' => $count,
-            'avg' => round($avg, 2),
-            'median' => round($median, 2),
-            'min' => round($min, 2),
-            'max' => round($max, 2),
-            'p90' => round($p90, 2),
-        ];
-    }
-
-    /**
-     * Aggregate statistics per clinic
-     *
-     * @param array $patients
-     * @return array
-     */
-    private function aggregateByClinic(array $patients): array
-    {
-        $byClinic = [];
-
-        foreach ($patients as $p) {
-            $clinic = $p['nm_poli'];
-            if (!isset($byClinic[$clinic])) {
-                $byClinic[$clinic] = [
-                    'patient_count' => 0,
-                    'waktu_tunggu_poli' => [],
-                    'waktu_layan_poli' => [],
-                    'waktu_tunggu_farmasi' => [],
-                    'waktu_layan_farmasi' => [],
-                    'total_waktu_rs' => [],
-                ];
-            }
-
-            if ($p['status'] !== 'Tidak Hadir / Batal') {
-                $byClinic[$clinic]['patient_count']++;
-                foreach (['waktu_tunggu_poli', 'waktu_layan_poli', 'waktu_tunggu_farmasi', 'waktu_layan_farmasi', 'total_waktu_rs'] as $metric) {
-                    if ($p['durations'][$metric] !== null) {
-                        $byClinic[$clinic][$metric][] = $p['durations'][$metric];
-                    }
-                }
-            }
-        }
-
-        $aggregated = [];
-        foreach ($byClinic as $clinic => $data) {
-            $aggregated[$clinic] = [
-                'patient_count' => $data['patient_count'],
-                'waktu_tunggu_poli' => $this->computeStats($data['waktu_tunggu_poli']),
-                'waktu_layan_poli' => $this->computeStats($data['waktu_layan_poli']),
-                'waktu_tunggu_farmasi' => $this->computeStats($data['waktu_tunggu_farmasi']),
-                'waktu_layan_farmasi' => $this->computeStats($data['waktu_layan_farmasi']),
-                'total_waktu_rs' => $this->computeStats($data['total_waktu_rs']),
-            ];
-        }
-
-        return $aggregated;
-    }
-
-    /**
-     * Aggregate statistics per doctor
-     *
-     * @param array $patients
-     * @return array
-     */
-    private function aggregateByDoctor(array $patients): array
-    {
-        $byDoctor = [];
-
-        foreach ($patients as $p) {
-            $doctor = $p['nm_dokter'];
-            if (!isset($byDoctor[$doctor])) {
-                $byDoctor[$doctor] = [
-                    'patient_count' => 0,
-                    'waktu_layan_poli' => [],
-                    'total_waktu_rs' => [],
-                ];
-            }
-
-            if ($p['status'] !== 'Tidak Hadir / Batal') {
-                $byDoctor[$doctor]['patient_count']++;
-                if ($p['durations']['waktu_layan_poli'] !== null) {
-                    $byDoctor[$doctor]['waktu_layan_poli'][] = $p['durations']['waktu_layan_poli'];
-                }
-                if ($p['durations']['total_waktu_rs'] !== null) {
-                    $byDoctor[$doctor]['total_waktu_rs'][] = $p['durations']['total_waktu_rs'];
-                }
-            }
-        }
-
-        $aggregated = [];
-        foreach ($byDoctor as $doctor => $data) {
-            $aggregated[$doctor] = [
-                'patient_count' => $data['patient_count'],
-                'waktu_layan_poli' => $this->computeStats($data['waktu_layan_poli']),
-                'total_waktu_rs' => $this->computeStats($data['total_waktu_rs']),
-            ];
-        }
-
-        return $aggregated;
-    }
-
-    /**
-     * Aggregate patient anomalies
-     *
-     * @param array $patients
-     * @return array
-     */
     private function aggregateAnomalies(array $patients): array
     {
         $counts = [
@@ -478,14 +688,6 @@ class FlowAnalyticsService
         return $counts;
     }
 
-    /**
-     * Detect patient anomalies
-     *
-     * @param array $real
-     * @param array $sent
-     * @param array $durations
-     * @return array
-     */
     public function detectPatientAnomalies(array $real, array $sent, array $durations): array
     {
         $anomalies = [];
@@ -513,7 +715,8 @@ class FlowAnalyticsService
         }
 
         // 3. Farmasi tepat 10 menit
-        if ($durations['waktu_tunggu_farmasi'] !== null && abs($durations['waktu_tunggu_farmasi'] - 10.0) < 0.001) {
+        $waktuTungguFarmasi = $durations['waktu_tunggu_farmasi'] ?? $durations['doctor_to_pharmacy'] ?? null;
+        if ($waktuTungguFarmasi !== null && abs($waktuTungguFarmasi - 10.0) < 0.001) {
             $anomalies[] = 'farmasi_10_menit';
         }
 
@@ -542,51 +745,171 @@ class FlowAnalyticsService
         return $anomalies;
     }
 
-    /**
-     * Compute global statistics across all patients
-     *
-     * @param array $patients
-     * @return array
-     */
-    private function computeGlobalStats(array $patients): array
+    private function calculateStatistics(array $patientFlows): array
     {
-        $metrics = [
-            'waktu_tunggu_poli' => [],
-            'waktu_layan_poli' => [],
-            'waktu_tunggu_farmasi' => [],
-            'waktu_layan_farmasi' => [],
-            'total_waktu_rs' => [],
+        $total         = count($patientFlows);
+        $completed     = 0;
+        $waiting       = 0;
+        $inProgress    = 0;
+        $withAnomalies = 0;
+
+        $durations = [
+            'checkin_to_nurse'   => [],
+            'nurse_to_doctor'    => [],
+            'doctor_to_pharmacy' => [],
+            'pharmacy_to_done'   => [],
+            'total_time'         => [],
         ];
 
-        foreach ($patients as $p) {
+        foreach ($patientFlows as $p) {
+            if ($p['status'] === 'completed') {
+                $completed++;
+            } elseif ($p['status'] === 'waiting') {
+                $waiting++;
+            } else {
+                $inProgress++;
+            }
+
+            if ($p['has_anomalies']) {
+                $withAnomalies++;
+            }
+
+            foreach (array_keys($durations) as $k) {
+                if (isset($p['durations'][$k]) && $p['durations'][$k] !== null) {
+                    $durations[$k][] = $p['durations'][$k];
+                }
+            }
+        }
+
+        return [
+            'total_patients' => $total,
+            'completed'      => $completed,
+            'waiting'        => $waiting,
+            'in_progress'    => $inProgress,
+            'with_anomalies' => $withAnomalies,
+            'avg_durations'  => [
+                'checkin_to_nurse'   => ! empty($durations['checkin_to_nurse']) ? round(array_sum($durations['checkin_to_nurse']) / count($durations['checkin_to_nurse']), 1) : null,
+                'nurse_to_doctor'    => ! empty($durations['nurse_to_doctor']) ? round(array_sum($durations['nurse_to_doctor']) / count($durations['nurse_to_doctor']), 1) : null,
+                'doctor_to_pharmacy' => ! empty($durations['doctor_to_pharmacy']) ? round(array_sum($durations['doctor_to_pharmacy']) / count($durations['doctor_to_pharmacy']), 1) : null,
+                'pharmacy_to_done'   => ! empty($durations['pharmacy_to_done']) ? round(array_sum($durations['pharmacy_to_done']) / count($durations['pharmacy_to_done']), 1) : null,
+                'total_time'         => ! empty($durations['total_time']) ? round(array_sum($durations['total_time']) / count($durations['total_time']), 1) : null,
+            ],
+        ];
+    }
+
+    private function computeStats(array $values): array
+    {
+        $count = count($values);
+        if ($count === 0) {
+            return ['count' => 0, 'median' => null];
+        }
+
+        sort($values);
+        $mid = floor(($count - 1) / 2);
+        $median = $count % 2
+            ? $values[$mid]
+            : (($values[$mid] + $values[$mid + 1]) / 2);
+
+        return [
+            'count'  => $count,
+            'median' => round($median, 1),
+        ];
+    }
+
+    private function getClinicStatistics(array $patientFlows): array
+    {
+        $byClinic = [];
+
+        foreach ($patientFlows as $p) {
+            $clinic = $p['nm_poli'];
+            if (! isset($byClinic[$clinic])) {
+                $byClinic[$clinic] = [
+                    'patient_count'        => 0,
+                    'waktu_tunggu_poli'    => [],
+                    'waktu_layan_poli'     => [],
+                    'waktu_tunggu_farmasi' => [],
+                    'waktu_layan_farmasi'  => [],
+                    'total_waktu_rs'       => [],
+                ];
+            }
+
             if ($p['status'] !== 'Tidak Hadir / Batal') {
-                foreach ($metrics as $key => &$arr) {
-                    if ($p['durations'][$key] !== null) {
-                        $arr[] = $p['durations'][$key];
+                $byClinic[$clinic]['patient_count']++;
+                foreach (['waktu_tunggu_poli', 'waktu_layan_poli', 'waktu_tunggu_farmasi', 'waktu_layan_farmasi', 'total_waktu_rs'] as $metric) {
+                    if (isset($p['durations'][$metric]) && $p['durations'][$metric] !== null) {
+                        $byClinic[$clinic][$metric][] = $p['durations'][$metric];
                     }
                 }
             }
         }
 
-        $stats = [];
-        foreach ($metrics as $key => $values) {
-            $stats[$key] = $this->computeStats($values);
+        $aggregated = [];
+        foreach ($byClinic as $clinic => $data) {
+            $aggregated[$clinic] = [
+                'patient_count'        => $data['patient_count'],
+                'waktu_tunggu_poli'    => $this->computeStats($data['waktu_tunggu_poli']),
+                'waktu_layan_poli'     => $this->computeStats($data['waktu_layan_poli']),
+                'waktu_tunggu_farmasi' => $this->computeStats($data['waktu_tunggu_farmasi']),
+                'waktu_layan_farmasi'  => $this->computeStats($data['waktu_layan_farmasi']),
+                'total_waktu_rs'       => $this->computeStats($data['total_waktu_rs']),
+            ];
         }
 
-        return $stats;
+        return $aggregated;
     }
 
-    /**
-     * Compute difference in minutes between two Carbon instances
-     *
-     * @param Carbon|null $start
-     * @param Carbon|null $end
-     * @return float|null
-     */
-    private function diffMinutes(?Carbon $start, ?Carbon $end): ?float
+    private function getDoctorStatistics(array $patientFlows): array
     {
-        if (!$start || !$end) return null;
-        $diffSeconds = $end->timestamp - $start->timestamp;
-        return round($diffSeconds / 60, 2);
+        $byDoctor = [];
+
+        foreach ($patientFlows as $p) {
+            $doctor = $p['nm_dokter'];
+            if (! isset($byDoctor[$doctor])) {
+                $byDoctor[$doctor] = [
+                    'patient_count'    => 0,
+                    'waktu_layan_poli' => [],
+                    'total_waktu_rs'   => [],
+                ];
+            }
+
+            if ($p['status'] !== 'Tidak Hadir / Batal') {
+                $byDoctor[$doctor]['patient_count']++;
+                if (isset($p['durations']['waktu_layan_poli']) && $p['durations']['waktu_layan_poli'] !== null) {
+                    $byDoctor[$doctor]['waktu_layan_poli'][] = $p['durations']['waktu_layan_poli'];
+                }
+                if (isset($p['durations']['total_waktu_rs']) && $p['durations']['total_waktu_rs'] !== null) {
+                    $byDoctor[$doctor]['total_waktu_rs'][] = $p['durations']['total_waktu_rs'];
+                }
+            }
+        }
+
+        $aggregated = [];
+        foreach ($byDoctor as $doctor => $data) {
+            $aggregated[$doctor] = [
+                'patient_count'    => $data['patient_count'],
+                'waktu_layan_poli' => $this->computeStats($data['waktu_layan_poli']),
+                'total_waktu_rs'   => $this->computeStats($data['total_waktu_rs']),
+            ];
+        }
+
+        return $aggregated;
+    }
+
+    private function getTimeDistribution(array $patientFlows): array
+    {
+        $dist = [
+            'checkin_to_nurse'   => [],
+            'nurse_to_doctor'    => [],
+            'doctor_to_pharmacy' => [],
+            'pharmacy_to_done'   => [],
+        ];
+        foreach ($patientFlows as $p) {
+            foreach (array_keys($dist) as $k) {
+                if (isset($p['durations'][$k]) && $p['durations'][$k] !== null) {
+                    $dist[$k][] = $p['durations'][$k];
+                }
+            }
+        }
+        return $dist;
     }
 }

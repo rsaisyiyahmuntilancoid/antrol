@@ -9,6 +9,8 @@ class MapingDokterDpjpvclaim extends Model
 {
     use HasFactory;
 
+    protected $connection = 'mysql';
+
     protected $table = 'maping_dokter_dpjpvclaim';
 
     // Primary key is kd_dokter (varchar)

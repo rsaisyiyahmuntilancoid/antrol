@@ -21,6 +21,8 @@ class BpjsWsRsLog extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'request_id',
+        'status',
         'code',
         'request',
         'message',

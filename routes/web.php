@@ -100,4 +100,9 @@ Route::prefix('api/monitoring')->group(function () {
     Route::get('/verify/{noRawat}', [App\Http\Controllers\FlowAnalyticsController::class, 'verifyBpjs'])->where('noRawat', '.*');
     Route::get('/bpjs-dashboard/tanggal', [App\Http\Controllers\FlowAnalyticsController::class, 'getBpjsDashboardTanggal']);
     Route::get('/bpjs-dashboard/bulan', [App\Http\Controllers\FlowAnalyticsController::class, 'getBpjsDashboardBulan']);
+    Route::post('/sync-patient', [App\Http\Controllers\FlowAnalyticsController::class, 'syncPatient']);
+    Route::post('/sync-batch', [App\Http\Controllers\FlowAnalyticsController::class, 'syncBatch']);
+    Route::post('/sync-today', [App\Http\Controllers\FlowAnalyticsController::class, 'syncToday']);
+    Route::post('/sync-range', [App\Http\Controllers\FlowAnalyticsController::class, 'syncRange']);
+    Route::get('/sync-status', [App\Http\Controllers\FlowAnalyticsController::class, 'syncStatus']);
 });

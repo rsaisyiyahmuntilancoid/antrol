@@ -21,6 +21,8 @@ class BpjsLogService
     {
         try {
             BpjsWsRsLog::create([
+                'request_id' => (string) \Illuminate\Support\Str::uuid(),
+                'status' => in_array($code, [200, 201, 204]) ? 'success' : 'fail',
                 'code' => $code,
                 'request' => substr($request, 0, 1000), // Limit to 1000 characters
                 'message' => substr($message, 0, 1000), // Limit to 1000 characters
@@ -135,7 +137,7 @@ class BpjsLogService
 
     /**
      * Get task ID related logs (for updatewaktu API calls)
-     * 
+     *
      * @param int $limit Number of records to retrieve
      * @param int $page Page number
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
@@ -149,7 +151,7 @@ class BpjsLogService
 
     /**
      * Filter task ID logs by date range
-     * 
+     *
      * @param string $startDate
      * @param string $endDate
      * @param int $limit Number of records to retrieve
@@ -166,7 +168,7 @@ class BpjsLogService
 
     /**
      * Get antrean add logs (for adding antrean)
-     * 
+     *
      * @param int $limit Number of records to retrieve
      * @param int $page Page number
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator

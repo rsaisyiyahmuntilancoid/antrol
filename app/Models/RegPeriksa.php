@@ -9,6 +9,7 @@ class RegPeriksa extends Model
 {
     use HasFactory;
 
+    protected $connection = 'mysql';
     protected $table = 'reg_periksa';
 
     protected $primaryKey = 'no_rawat';

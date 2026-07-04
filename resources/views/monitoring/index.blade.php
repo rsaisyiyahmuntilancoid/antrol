@@ -5,7 +5,8 @@
 @section('content')
 <div class="max-w-7xl mx-auto px-6 py-12 relative overflow-hidden">
     @if(session('warning'))
-    <div class="bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 p-4 rounded-2xl mb-6 font-semibold text-sm flex items-center gap-3">
+    <div
+        class="bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 p-4 rounded-2xl mb-6 font-semibold text-sm flex items-center gap-3">
         <i class="fas fa-exclamation-circle text-lg"></i>
         {{ session('warning') }}
     </div>
@@ -16,41 +17,56 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
                 <h1 class="text-4xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-                    <span class="bg-blue-600 p-2.5 rounded-2xl text-white text-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
-                        <i class="fas fa-chart-line"></i>
+                    <span
+                        class="bg-blue-600 p-2.5 rounded-2xl text-white text-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+                        <i class="fas fa-heartbeat"></i>
                     </span>
-                    Flow Analytics & Monitoring
+                    Flow Analytics & Monitoring BPJS
                 </h1>
-                <p class="text-slate-500 dark:text-slate-400 mt-2">
-                    Monitoring Waktu Pelayanan dan Sinkronisasi Task ID Pasien BPJS
+                <p class="text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
+                    <span
+                        class="inline-flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-full text-xs font-semibold">
+                        <i class="fas fa-database"></i>
+                        Sumber: BPJS (Cached)
+                    </span>
+                    Monitoring Waktu Pelayanan dan Task ID Pasien BPJS
                 </p>
             </div>
 
             <!-- Tab Switcher -->
-            <div class="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
-                <button onclick="switchTab('simrs')" id="btn-tab-simrs" class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all bg-white dark:bg-slate-900 shadow-sm text-blue-600 dark:text-blue-400">
+            <div
+                class="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
+                <button onclick="switchTab('simrs')" id="btn-tab-simrs"
+                    class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all bg-white dark:bg-slate-900 shadow-sm text-blue-600 dark:text-blue-400">
                     <i class="fas fa-database mr-2"></i>Dashboard SIMRS
                 </button>
-                <button onclick="switchTab('bpjs')" id="btn-tab-bpjs" class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                <button onclick="switchTab('bpjs')" id="btn-tab-bpjs"
+                    class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
                     <i class="fas fa-globe mr-2"></i>Rapor Resmi BPJS
                 </button>
             </div>
         </div>
 
         <!-- Filters Block -->
-        <div class="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-200/60 dark:border-slate-800/60">
+        <div
+            class="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-200/60 dark:border-slate-800/60">
             <!-- Date Filter (Shared/SIMRS) -->
             <div id="simrs-date-filter" class="flex flex-wrap items-center gap-3">
                 <form method="GET" action="{{ route('monitoring.index') }}" class="flex items-center gap-3">
-                    <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2">
+                    <div
+                        class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2">
                         <label class="text-xs font-bold text-slate-400 uppercase">From</label>
-                        <input type="date" name="date_from" value="{{ $dateFrom }}" class="bg-transparent border-none text-sm font-semibold focus:ring-0 outline-none text-slate-700 dark:text-slate-300">
+                        <input type="date" name="date_from" value="{{ $dateFrom }}"
+                            class="bg-transparent border-none text-sm font-semibold focus:ring-0 outline-none text-slate-700 dark:text-slate-300">
                     </div>
-                    <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2">
+                    <div
+                        class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2">
                         <label class="text-xs font-bold text-slate-400 uppercase">To</label>
-                        <input type="date" name="date_to" value="{{ $dateTo }}" class="bg-transparent border-none text-sm font-semibold focus:ring-0 outline-none text-slate-700 dark:text-slate-300">
+                        <input type="date" name="date_to" value="{{ $dateTo }}"
+                            class="bg-transparent border-none text-sm font-semibold focus:ring-0 outline-none text-slate-700 dark:text-slate-300">
                     </div>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-blue-500/10 flex items-center gap-2">
+                    <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-blue-500/10 flex items-center gap-2">
                         <i class="fas fa-search"></i> Apply
                     </button>
                 </form>
@@ -58,13 +74,16 @@
                 <div class="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden md:block"></div>
 
                 <div class="flex gap-2">
-                    <a href="{{ route('monitoring.index', ['date_from' => \Carbon\Carbon::parse($dateFrom)->subDay()->format('Y-m-d'), 'date_to' => \Carbon\Carbon::parse($dateTo)->subDay()->format('Y-m-d')]) }}" class="glass px-3.5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                    <a href="{{ route('monitoring.index', ['date_from' => \Carbon\Carbon::parse($dateFrom)->subDay()->format('Y-m-d'), 'date_to' => \Carbon\Carbon::parse($dateTo)->subDay()->format('Y-m-d')]) }}"
+                        class="glass px-3.5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
                         <i class="fas fa-chevron-left"></i>
                     </a>
-                    <a href="{{ route('monitoring.index', ['date_from' => \Carbon\Carbon::parse($dateFrom)->addDay()->format('Y-m-d'), 'date_to' => \Carbon\Carbon::parse($dateTo)->addDay()->format('Y-m-d')]) }}" class="glass px-3.5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                    <a href="{{ route('monitoring.index', ['date_from' => \Carbon\Carbon::parse($dateFrom)->addDay()->format('Y-m-d'), 'date_to' => \Carbon\Carbon::parse($dateTo)->addDay()->format('Y-m-d')]) }}"
+                        class="glass px-3.5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
                         <i class="fas fa-chevron-right"></i>
                     </a>
-                    <a href="{{ route('monitoring.index') }}" class="glass px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                    <a href="{{ route('monitoring.index') }}"
+                        class="glass px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
                         Today
                     </a>
                 </div>
@@ -74,10 +93,13 @@
             <div id="bpjs-dashboard-filter" class="hidden flex-wrap items-center gap-3 w-full md:w-auto">
                 <div class="flex items-center gap-3 w-full md:w-auto">
                     <!-- Daily selector -->
-                    <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2">
-                        <input type="date" id="bpjs-date" value="{{ $dateFrom }}" class="bg-transparent border-none text-sm font-semibold focus:ring-0 outline-none text-slate-700 dark:text-slate-300">
+                    <div
+                        class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2">
+                        <input type="date" id="bpjs-date" value="{{ $dateFrom }}"
+                            class="bg-transparent border-none text-sm font-semibold focus:ring-0 outline-none text-slate-700 dark:text-slate-300">
                     </div>
-                    <button onclick="fetchBpjsDailyReport()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-teal-500/10 flex items-center gap-2">
+                    <button onclick="fetchBpjsDailyReport()"
+                        class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-teal-500/10 flex items-center gap-2">
                         <i class="fas fa-calendar-day"></i> Rapor Harian
                     </button>
 
@@ -85,31 +107,103 @@
 
                     <!-- Monthly selector -->
                     <div class="flex items-center gap-2">
-                        <select id="bpjs-month" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-teal-500 text-slate-700 dark:text-slate-300">
-                            @for ($m = 1; $m <= 12; $m++)
-                                <option value="{{ sprintf('%02d', $m) }}" {{ $m == date('m') ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
-                            @endfor
+                        <select id="bpjs-month"
+                            class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-teal-500 text-slate-700 dark:text-slate-300">
+                            @for ($m = 1; $m <= 12; $m++) <option value="{{ sprintf('%02d', $m) }}" {{ $m==date('m')
+                                ? 'selected' : '' }}>{{ date('F', mktime(0, 0, 0, $m, 1)) }}</option>
+                                @endfor
                         </select>
-                        <select id="bpjs-year" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-teal-500 text-slate-700 dark:text-slate-300">
-                            @for ($y = date('Y') - 2; $y <= date('Y'); $y++)
-                                <option value="{{ $y }}" {{ $y == date('Y') ? 'selected' : '' }}>{{ $y }}</option>
-                            @endfor
+                        <select id="bpjs-year"
+                            class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-teal-500 text-slate-700 dark:text-slate-300">
+                            @for ($y = date('Y') - 2; $y <= date('Y'); $y++) <option value="{{ $y }}" {{ $y==date('Y')
+                                ? 'selected' : '' }}>{{ $y }}</option>
+                                @endfor
                         </select>
-                        <button onclick="fetchBpjsMonthlyReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-indigo-500/10 flex items-center gap-2">
+                        <button onclick="fetchBpjsMonthlyReport()"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-indigo-500/10 flex items-center gap-2">
                             <i class="fas fa-calendar-alt"></i> Rapor Bulanan
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Quick Links -->
+            <!-- Quick Links & Sync -->
             <div class="flex items-center gap-2">
-                <button onclick="window.location.reload()" class="glass p-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" title="Refresh Page">
-                    <i class="fas fa-sync-alt"></i>
+                @if($dateFrom === now()->toDateString() && $dateTo === now()->toDateString())
+                <button id="btn-sync-today" onclick="triggerSyncToday()"
+                    class="glass px-4 py-2.5 rounded-xl text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all font-semibold flex items-center gap-2 border border-slate-200 dark:border-slate-700">
+                    <i class="fas fa-sync-alt" id="sync-today-icon"></i>
+                    <span>Sync Sekarang</span>
+                </button>
+                @endif
+                <button onclick="window.location.reload()"
+                    class="glass p-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    title="Refresh Halaman">
+                    <i class="fas fa-redo"></i>
                 </button>
             </div>
         </div>
-    </div>
+
+        <!-- Redesign Date-Range Sync Banner -->
+        <div id="range-sync-banner" class="mt-4">
+            @if($analytics['days_with_registrations'] > 0 && $analytics['days_with_data'] < $analytics['days_with_registrations'])
+                @if($analytics['days_with_data'] > 0)
+                    <!-- Warning/Yellow Banner for partial data -->
+                    <div class="p-4 bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <span class="bg-amber-500 p-2.5 rounded-xl text-white flex items-center justify-center">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </span>
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200">Data Tidak Lengkap</h4>
+                                <p class="text-xs text-slate-500 mt-0.5">
+                                    Data hanya tersedia untuk <strong>{{ $analytics['days_with_data'] }}</strong> dari <strong>{{ $analytics['days_with_registrations'] }}</strong> hari kunjungan. 
+                                    Ada <strong>{{ $analytics['days_with_registrations'] - $analytics['days_with_data'] }} hari</strong> yang belum disinkronkan.
+                                </p>
+                            </div>
+                        </div>
+                        <button id="btn-sync-missing" onclick="triggerRangeSync()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2">
+                            <i class="fas fa-sync-alt" id="sync-range-icon"></i>
+                            <span>Sync Hari Kosong</span>
+                        </button>
+                    </div>
+                @else
+                    <!-- Completely empty state banner -->
+                    <div class="p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl flex flex-col items-center text-center justify-center gap-4">
+                        <span class="bg-blue-500/10 p-4 rounded-full text-blue-600 dark:text-blue-400 text-2xl flex items-center justify-center">
+                            <i class="fas fa-database"></i>
+                        </span>
+                        <div>
+                            <h4 class="text-lg font-bold text-slate-800 dark:text-slate-200">Belum Ada Data BPJS</h4>
+                            <p class="text-sm text-slate-500 mt-1 max-w-md">
+                                Belum ada data kunjungan yang disinkronkan dari server BPJS Kesehatan untuk rentang tanggal 
+                                <strong>{{ $dateFrom }}</strong> s/d <strong>{{ $dateTo }}</strong>.
+                            </p>
+                        </div>
+                        <button id="btn-sync-range-empty" onclick="triggerRangeSync()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-lg shadow-blue-500/20">
+                            <i class="fas fa-sync-alt" id="sync-range-empty-icon"></i>
+                            <span>Jadwalkan Sync Range Ini</span>
+                        </button>
+                    </div>
+                @endif
+            @endif
+        </div>
+
+        <!-- Queue Progress Polling Container -->
+        <div id="sync-progress-container" class="hidden mt-4">
+            <div class="glass p-4 rounded-2xl border border-blue-500/20">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                        <i class="fas fa-sync-alt fa-spin text-blue-600 dark:text-blue-400"></i>
+                        <span id="sync-progress-title">Sedang disinkronkan...</span>
+                    </span>
+                    <span id="sync-progress-text" class="text-sm font-semibold text-blue-600 dark:text-blue-400">0%</span>
+                </div>
+                <div class="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                    <div id="sync-progress-bar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
 
     <!-- TAB 1: INTERNAL SIMRS DASHBOARD -->
     <div id="tab-simrs-content" class="space-y-8 animate-in fade-in duration-300">
@@ -117,94 +211,167 @@
         <div class="grid grid-cols-2 md:grid-cols-5 gap-6">
             <!-- Card 1: Total Patients -->
             <div class="glass p-6 rounded-3xl card-hover relative overflow-hidden group">
-                <div class="absolute -right-4 -bottom-4 text-slate-200/20 dark:text-slate-800/10 text-7xl group-hover:scale-110 transition-transform duration-300">
+                <div
+                    class="absolute -right-4 -bottom-4 text-slate-200/20 dark:text-slate-800/10 text-7xl group-hover:scale-110 transition-transform duration-300">
                     <i class="fas fa-user-friends"></i>
                 </div>
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Kunjungan</h3>
-                <p class="text-3xl font-bold text-slate-900 dark:text-white mt-3">{{ $analytics['summary']['total_patients'] }}</p>
+                <p class="text-3xl font-bold text-slate-900 dark:text-white mt-3" id="kpi-total-patients">{{
+                    $analytics['summary']['total_patients'] }}</p>
                 <div class="mt-2 text-xs font-semibold flex items-center text-slate-500">
-                    <span class="text-rose-500 font-bold mr-1">{{ $analytics['summary']['batal_patients'] }}</span> batal / tidak hadir
+                    <span class="text-rose-500 font-bold mr-1" id="kpi-batal-patients">{{
+                        $analytics['summary']['batal_patients'] }}</span> batal / tidak hadir
                 </div>
             </div>
 
             <!-- Card 2: Median Tunggu Poli -->
             <div class="glass p-6 rounded-3xl card-hover relative overflow-hidden group">
-                <div class="absolute -right-4 -bottom-4 text-slate-200/20 dark:text-slate-800/10 text-7xl group-hover:scale-110 transition-transform duration-300">
+                <div
+                    class="absolute -right-4 -bottom-4 text-slate-200/20 dark:text-slate-800/10 text-7xl group-hover:scale-110 transition-transform duration-300">
                     <i class="fas fa-clock"></i>
                 </div>
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Med. Tunggu Poli</h3>
                 <p class="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-3">
-                    {{ $analytics['global_stats']['waktu_tunggu_poli']['median'] }}<span class="text-sm font-semibold ml-0.5 text-slate-400">m</span>
+                    @php $wtp = $analytics['global_stats']['waktu_tunggu_poli']; @endphp
+                    @if($wtp['count'] > 0)
+                    @if($wtp['median'] < 0) <span class="text-rose-500">{{ $wtp['median'] }}</span><span
+                            class="text-sm font-semibold ml-0.5 text-rose-400">m</span>
+                        @else
+                        {{ $wtp['median'] }}<span class="text-sm font-semibold ml-0.5 text-slate-400">m</span>
+                        @endif
+                        @else
+                        <span class="text-slate-300 dark:text-slate-600">—</span>
+                        @endif
                 </p>
-                <div class="mt-2 text-xs font-semibold text-slate-500">
-                    Task 3 &rarr; Task 4 (Admisi-Poli)
+                <div class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
+                    <span>Task 3 &rarr; 4 (Admisi-Poli)</span>
+                    @if($wtp['count'] > 0)
+                    <span class="text-slate-400">n={{ $wtp['count'] }}</span>
+                    @endif
                 </div>
             </div>
 
             <!-- Card 3: Median Layan Poli -->
             <div class="glass p-6 rounded-3xl card-hover relative overflow-hidden group">
-                <div class="absolute -right-4 -bottom-4 text-slate-200/20 dark:text-slate-800/10 text-7xl group-hover:scale-110 transition-transform duration-300">
+                <div
+                    class="absolute -right-4 -bottom-4 text-slate-200/20 dark:text-slate-800/10 text-7xl group-hover:scale-110 transition-transform duration-300">
                     <i class="fas fa-user-md"></i>
                 </div>
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Med. Layan Poli</h3>
                 <p class="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-3">
-                    {{ $analytics['global_stats']['waktu_layan_poli']['median'] }}<span class="text-sm font-semibold ml-0.5 text-slate-400">m</span>
+                    @php $wlp = $analytics['global_stats']['waktu_layan_poli']; @endphp
+                    @if($wlp['count'] > 0)
+                    @if($wlp['median'] < 0) <span class="text-rose-500">{{ $wlp['median'] }}</span><span
+                            class="text-sm font-semibold ml-0.5 text-rose-400">m</span>
+                        @else
+                        {{ $wlp['median'] }}<span class="text-sm font-semibold ml-0.5 text-slate-400">m</span>
+                        @endif
+                        @else
+                        <span class="text-slate-300 dark:text-slate-600">—</span>
+                        @endif
                 </p>
-                <div class="mt-2 text-xs font-semibold text-slate-500">
-                    Task 4 &rarr; Task 5 (Pemeriksaan)
+                <div class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
+                    <span>Task 4 &rarr; 5 (Pemeriksaan)</span>
+                    @if($wlp['count'] > 0)
+                    <span class="text-slate-400">n={{ $wlp['count'] }}</span>
+                    @endif
                 </div>
             </div>
 
             <!-- Card 4: Median Tunggu Farmasi -->
             <div class="glass p-6 rounded-3xl card-hover relative overflow-hidden group">
-                <div class="absolute -right-4 -bottom-4 text-slate-200/20 dark:text-slate-800/10 text-7xl group-hover:scale-110 transition-transform duration-300">
+                <div
+                    class="absolute -right-4 -bottom-4 text-slate-200/20 dark:text-slate-800/10 text-7xl group-hover:scale-110 transition-transform duration-300">
                     <i class="fas fa-prescription-bottle-alt"></i>
                 </div>
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Med. Tunggu Farmasi</h3>
                 <p class="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-3">
-                    {{ $analytics['global_stats']['waktu_tunggu_farmasi']['median'] }}<span class="text-sm font-semibold ml-0.5 text-slate-400">m</span>
+                    @php $wtf = $analytics['global_stats']['waktu_tunggu_farmasi']; @endphp
+                    @if($wtf['count'] > 0)
+                    @if($wtf['median'] < 0) <span class="text-rose-500">{{ $wtf['median'] }}</span><span
+                            class="text-sm font-semibold ml-0.5 text-rose-400">m</span>
+                        @else
+                        {{ $wtf['median'] }}<span class="text-sm font-semibold ml-0.5 text-slate-400">m</span>
+                        @endif
+                        @else
+                        <span class="text-slate-300 dark:text-slate-600">—</span>
+                        @endif
                 </p>
-                <div class="mt-2 text-xs font-semibold text-slate-500">
-                    Task 5 &rarr; Task 6 (Buat Resep)
+                <div class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
+                    <span>Task 5 &rarr; 6 (Buat Resep)</span>
+                    @if($wtf['count'] > 0)
+                    <span class="text-slate-400">n={{ $wtf['count'] }}</span>
+                    @endif
                 </div>
             </div>
 
             <!-- Card 5: Median Total Waktu RS -->
             <div class="glass p-6 rounded-3xl card-hover relative overflow-hidden group">
-                <div class="absolute -right-4 -bottom-4 text-slate-200/20 dark:text-slate-800/10 text-7xl group-hover:scale-110 transition-transform duration-300">
+                <div
+                    class="absolute -right-4 -bottom-4 text-slate-200/20 dark:text-slate-800/10 text-7xl group-hover:scale-110 transition-transform duration-300">
                     <i class="fas fa-hospital"></i>
                 </div>
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Med. Total RS</h3>
                 <p class="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-3">
-                    {{ $analytics['global_stats']['total_waktu_rs']['median'] }}<span class="text-sm font-semibold ml-0.5 text-slate-400">m</span>
+                    @php $twr = $analytics['global_stats']['total_waktu_rs']; @endphp
+                    @if($twr['count'] > 0)
+                    @if($twr['median'] < 0) <span class="text-rose-500">{{ $twr['median'] }}</span><span
+                            class="text-sm font-semibold ml-0.5 text-rose-400">m</span>
+                        @else
+                        {{ $twr['median'] }}<span class="text-sm font-semibold ml-0.5 text-slate-400">m</span>
+                        @endif
+                        @else
+                        <span class="text-slate-300 dark:text-slate-600">—</span>
+                        @endif
                 </p>
-                <div class="mt-2 text-xs font-semibold text-slate-500">
-                    Task 3 &rarr; Task 7 (Admisi-Selesai)
+                <div class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
+                    <span>Task 3 &rarr; 7 (Admisi-Selesai)</span>
+                    @if($twr['count'] > 0)
+                    <span class="text-slate-400">n={{ $twr['count'] }}</span>
+                    @endif
                 </div>
             </div>
         </div>
 
         <!-- Anomaly Alert Banner -->
         @if ($analytics['anomalies']['total_anomalies'] > 0)
-        <div class="bg-rose-500/10 dark:bg-rose-500/5 border border-rose-500/20 rounded-3xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div
+            class="bg-rose-500/10 dark:bg-rose-500/5 border border-rose-500/20 rounded-3xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div class="flex items-start gap-4">
-                <div class="w-12 h-12 bg-rose-500 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-rose-500/20 shrink-0">
+                <div
+                    class="w-12 h-12 bg-rose-500 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-rose-500/20 shrink-0">
                     <i class="fas fa-exclamation-triangle"></i>
                 </div>
                 <div>
-                    <h4 class="text-lg font-bold text-rose-600 dark:text-rose-400">Terdeteksi {{ $analytics['anomalies']['total_anomalies'] }} Anomali Data Kunjungan</h4>
+                    <h4 class="text-lg font-bold text-rose-600 dark:text-rose-400">Terdeteksi {{
+                        $analytics['anomalies']['total_anomalies'] }} Anomali Data Kunjungan</h4>
                     <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        Ditemukan data transaksi antrean yang tidak wajar atau melanggar aturan sinkronisasi Task ID BPJS.
+                        Ditemukan data transaksi antrean yang tidak wajar atau melanggar aturan sinkronisasi Task ID
+                        BPJS.
                     </p>
-                    <div class="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs font-semibold text-slate-600 dark:text-slate-400">
-                        <span onclick="filterPatientByAnomaly('timestamp_buatan')" class="flex items-center cursor-pointer hover:text-rose-600 transition-colors"><span class="w-2.5 h-2.5 bg-rose-500 rounded-full mr-2"></span> {{ count($analytics['anomalies']['timestamp_buatan']) }} Timestamp Buatan</span>
-                        <span onclick="filterPatientByAnomaly('durasi_negatif')" class="flex items-center cursor-pointer hover:text-amber-600 transition-colors"><span class="w-2.5 h-2.5 bg-amber-500 rounded-full mr-2"></span> {{ count($analytics['anomalies']['durasi_negatif']) }} Durasi Negatif</span>
-                        <span onclick="filterPatientByAnomaly('farmasi_10_menit')" class="flex items-center cursor-pointer hover:text-teal-600 transition-colors"><span class="w-2.5 h-2.5 bg-teal-500 rounded-full mr-2"></span> {{ count($analytics['anomalies']['farmasi_10_menit']) }} Farmasi Tepat 10 Menit</span>
-                        <span onclick="filterPatientByAnomaly('belum_terkirim')" class="flex items-center cursor-pointer hover:text-slate-600 dark:hover:text-white transition-colors"><span class="w-2.5 h-2.5 bg-slate-500 rounded-full mr-2"></span> {{ count($analytics['anomalies']['belum_terkirim']) }} Belum Terkirim</span>
+                    <div
+                        class="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                        <span onclick="filterPatientByAnomaly('timestamp_buatan')"
+                            class="flex items-center cursor-pointer hover:text-rose-600 transition-colors"><span
+                                class="w-2.5 h-2.5 bg-rose-500 rounded-full mr-2"></span> {{
+                            count($analytics['anomalies']['timestamp_buatan']) }} Timestamp Buatan</span>
+                        <span onclick="filterPatientByAnomaly('durasi_negatif')"
+                            class="flex items-center cursor-pointer hover:text-amber-600 transition-colors"><span
+                                class="w-2.5 h-2.5 bg-amber-500 rounded-full mr-2"></span> {{
+                            count($analytics['anomalies']['durasi_negatif']) }} Durasi Negatif</span>
+                        <span onclick="filterPatientByAnomaly('farmasi_10_menit')"
+                            class="flex items-center cursor-pointer hover:text-teal-600 transition-colors"><span
+                                class="w-2.5 h-2.5 bg-teal-500 rounded-full mr-2"></span> {{
+                            count($analytics['anomalies']['farmasi_10_menit']) }} Farmasi Tepat 10 Menit</span>
+                        <span onclick="filterPatientByAnomaly('belum_terkirim')"
+                            class="flex items-center cursor-pointer hover:text-slate-600 dark:hover:text-white transition-colors"><span
+                                class="w-2.5 h-2.5 bg-slate-500 rounded-full mr-2"></span> {{
+                            count($analytics['anomalies']['belum_terkirim']) }} Belum Terkirim</span>
                     </div>
                 </div>
             </div>
-            <button onclick="scrollToPatientTableWithAnomalies()" class="bg-rose-600 hover:bg-rose-700 text-white px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-rose-500/20 shrink-0">
+            <button onclick="scrollToPatientTableWithAnomalies()"
+                class="bg-rose-600 hover:bg-rose-700 text-white px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-rose-500/20 shrink-0">
                 Lihat Detail Anomali &rarr;
             </button>
         </div>
@@ -218,68 +385,91 @@
 
             <div class="grid grid-cols-1 md:grid-cols-9 gap-6 items-center">
                 <!-- Step 3 -->
-                <div class="md:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-5 rounded-2xl text-center flex flex-col items-center">
-                    <div class="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-blue-500/20 mb-3">3</div>
+                <div
+                    class="md:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-5 rounded-2xl text-center flex flex-col items-center">
+                    <div
+                        class="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-blue-500/20 mb-3">
+                        3</div>
                     <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200">Check-in</h4>
                     <p class="text-[10px] text-slate-400 font-semibold mt-1">Admisi Selesai</p>
                 </div>
                 <!-- Connector 3->4 -->
                 <div class="md:col-span-1 flex flex-col items-center justify-center text-center">
                     <div class="h-0.5 w-full bg-blue-500/20 hidden md:block"></div>
-                    <span class="flow-duration px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold text-xs shadow-sm mt-2 md:mt-0">
-                        {{ $analytics['global_stats']['waktu_tunggu_poli']['median'] }} m
+                    @php $v = $analytics['global_stats']['waktu_tunggu_poli']; @endphp
+                    <span
+                        class="flow-duration px-3 py-1.5 rounded-full {{ $v['count'] > 0 && $v['median'] < 0 ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' }} font-bold text-xs shadow-sm mt-2 md:mt-0">
+                        {{ $v['count'] > 0 ? $v['median'].' m' : 'N/A' }}
                     </span>
                     <span class="text-[9px] text-slate-400 font-semibold mt-1">Tunggu Poli</span>
                 </div>
 
                 <!-- Step 4 -->
-                <div class="md:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-5 rounded-2xl text-center flex flex-col items-center">
-                    <div class="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-indigo-500/20 mb-3">4</div>
+                <div
+                    class="md:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-5 rounded-2xl text-center flex flex-col items-center">
+                    <div
+                        class="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-indigo-500/20 mb-3">
+                        4</div>
                     <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200">Mulai Poli</h4>
                     <p class="text-[10px] text-slate-400 font-semibold mt-1">Perawat Masuk</p>
                 </div>
                 <!-- Connector 4->5 -->
                 <div class="md:col-span-1 flex flex-col items-center justify-center text-center">
                     <div class="h-0.5 w-full bg-emerald-500/20 hidden md:block"></div>
-                    <span class="flow-duration px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs shadow-sm mt-2 md:mt-0">
-                        {{ $analytics['global_stats']['waktu_layan_poli']['median'] }} m
+                    @php $v = $analytics['global_stats']['waktu_layan_poli']; @endphp
+                    <span
+                        class="flow-duration px-3 py-1.5 rounded-full {{ $v['count'] > 0 && $v['median'] < 0 ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300' : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' }} font-bold text-xs shadow-sm mt-2 md:mt-0">
+                        {{ $v['count'] > 0 ? $v['median'].' m' : 'N/A' }}
                     </span>
                     <span class="text-[9px] text-slate-400 font-semibold mt-1">Layanan Poli</span>
                 </div>
 
                 <!-- Step 5 -->
-                <div class="md:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-5 rounded-2xl text-center flex flex-col items-center">
-                    <div class="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-emerald-500/20 mb-3">5</div>
+                <div
+                    class="md:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-5 rounded-2xl text-center flex flex-col items-center">
+                    <div
+                        class="w-10 h-10 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-emerald-500/20 mb-3">
+                        5</div>
                     <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200">Selesai Dokter</h4>
                     <p class="text-[10px] text-slate-400 font-semibold mt-1">Pemeriksaan Done</p>
                 </div>
                 <!-- Connector 5->6 -->
                 <div class="md:col-span-1 flex flex-col items-center justify-center text-center">
                     <div class="h-0.5 w-full bg-indigo-500/20 hidden md:block"></div>
-                    <span class="flow-duration px-3 py-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-bold text-xs shadow-sm mt-2 md:mt-0">
-                        {{ $analytics['global_stats']['waktu_tunggu_farmasi']['median'] }} m
+                    @php $v = $analytics['global_stats']['waktu_tunggu_farmasi']; @endphp
+                    <span
+                        class="flow-duration px-3 py-1.5 rounded-full {{ $v['count'] > 0 && $v['median'] < 0 ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300' : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' }} font-bold text-xs shadow-sm mt-2 md:mt-0">
+                        {{ $v['count'] > 0 ? $v['median'].' m' : 'N/A' }}
                     </span>
                     <span class="text-[9px] text-slate-400 font-semibold mt-1">Tunggu Farmasi</span>
                 </div>
 
                 <!-- Step 6 -->
-                <div class="md:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-5 rounded-2xl text-center flex flex-col items-center">
-                    <div class="w-10 h-10 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-purple-500/20 mb-3">6</div>
+                <div
+                    class="md:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-5 rounded-2xl text-center flex flex-col items-center">
+                    <div
+                        class="w-10 h-10 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-purple-500/20 mb-3">
+                        6</div>
                     <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200">Mulai Farmasi</h4>
                     <p class="text-[10px] text-slate-400 font-semibold mt-1">Input Resep</p>
                 </div>
                 <!-- Connector 6->7 -->
                 <div class="md:col-span-1 flex flex-col items-center justify-center text-center">
                     <div class="h-0.5 w-full bg-purple-500/20 hidden md:block"></div>
-                    <span class="flow-duration px-3 py-1.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-bold text-xs shadow-sm mt-2 md:mt-0">
-                        {{ $analytics['global_stats']['waktu_layan_farmasi']['median'] }} m
+                    @php $v = $analytics['global_stats']['waktu_layan_farmasi']; @endphp
+                    <span
+                        class="flow-duration px-3 py-1.5 rounded-full {{ $v['count'] > 0 && $v['median'] < 0 ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300' : 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300' }} font-bold text-xs shadow-sm mt-2 md:mt-0">
+                        {{ $v['count'] > 0 ? $v['median'].' m' : 'N/A' }}
                     </span>
                     <span class="text-[9px] text-slate-400 font-semibold mt-1">Layanan Obat</span>
                 </div>
 
                 <!-- Step 7 -->
-                <div class="md:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-5 rounded-2xl text-center flex flex-col items-center">
-                    <div class="w-10 h-10 rounded-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-slate-500/10 mb-3">7</div>
+                <div
+                    class="md:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-5 rounded-2xl text-center flex flex-col items-center">
+                    <div
+                        class="w-10 h-10 rounded-full bg-slate-900 dark:bg-white dark:text-slate-900 text-white font-bold flex items-center justify-center text-sm shadow-md shadow-slate-500/10 mb-3">
+                        7</div>
                     <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200">Selesai</h4>
                     <p class="text-[10px] text-slate-400 font-semibold mt-1">Serah Obat</p>
                 </div>
@@ -307,10 +497,14 @@
                     <canvas id="statusChart"></canvas>
                 </div>
                 <div class="mt-4 grid grid-cols-2 gap-2 text-xs font-semibold text-slate-500">
-                    <div class="flex items-center"><span class="w-3 h-3 bg-emerald-500 rounded-full mr-2"></span> Lengkap 3-7</div>
-                    <div class="flex items-center"><span class="w-3 h-3 bg-blue-500 rounded-full mr-2"></span> Lengkap 3-6</div>
-                    <div class="flex items-center"><span class="w-3 h-3 bg-indigo-400 rounded-full mr-2"></span> Lengkap 3-5</div>
-                    <div class="flex items-center"><span class="w-3 h-3 bg-amber-500 rounded-full mr-2"></span> Belum Lengkap</div>
+                    <div class="flex items-center"><span class="w-3 h-3 bg-emerald-500 rounded-full mr-2"></span>
+                        Lengkap 3-7</div>
+                    <div class="flex items-center"><span class="w-3 h-3 bg-blue-500 rounded-full mr-2"></span> Lengkap
+                        3-6</div>
+                    <div class="flex items-center"><span class="w-3 h-3 bg-indigo-400 rounded-full mr-2"></span> Lengkap
+                        3-5</div>
+                    <div class="flex items-center"><span class="w-3 h-3 bg-amber-500 rounded-full mr-2"></span> Belum
+                        Lengkap</div>
                 </div>
             </div>
         </div>
@@ -319,15 +513,18 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <!-- Clinics Summary Table -->
             <div class="glass rounded-[32px] overflow-hidden shadow-sm">
-                <div class="px-8 py-6 border-b border-slate-200/50 dark:border-slate-800/50 flex justify-between items-center">
+                <div
+                    class="px-8 py-6 border-b border-slate-200/50 dark:border-slate-800/50 flex justify-between items-center">
                     <h3 class="text-lg font-bold tracking-tight flex items-center gap-2">
                         <i class="fas fa-clinic-medical text-blue-600"></i> Ringkasan Kinerja Poliklinik
                     </h3>
+                    <span class="text-xs text-slate-400 font-semibold">Klik baris untuk detail</span>
                 </div>
                 <div class="overflow-x-auto max-h-[320px] overflow-y-auto">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
-                            <tr class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40">
+                            <tr
+                                class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40">
                                 <th class="px-6 py-4">Poliklinik</th>
                                 <th class="px-6 py-4 text-center">Pasien</th>
                                 <th class="px-6 py-4 text-center">Med. Tunggu</th>
@@ -337,13 +534,48 @@
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                             @foreach ($analytics['clinic_stats'] as $clinic => $stats)
-                                <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors font-medium">
-                                    <td class="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{{ $clinic }}</td>
-                                    <td class="px-6 py-4 text-center">{{ $stats['patient_count'] }}</td>
-                                    <td class="px-6 py-4 text-center text-blue-600 dark:text-blue-400 font-semibold">{{ $stats['waktu_tunggu_poli']['median'] }}m</td>
-                                    <td class="px-6 py-4 text-center text-emerald-600 dark:text-emerald-400 font-semibold">{{ $stats['waktu_layan_poli']['median'] }}m</td>
-                                    <td class="px-6 py-4 text-center text-purple-600 dark:text-purple-400 font-bold">{{ $stats['total_waktu_rs']['median'] }}m</td>
-                                </tr>
+                            <tr class="hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors font-medium cursor-pointer"
+                                onclick="showClinicDetail('{{ addslashes($clinic) }}', '{{ $dateFrom }}', '{{ $dateTo }}')">
+                                <td class="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{{ $clinic }}</td>
+                                <td class="px-6 py-4 text-center">{{ $stats['patient_count'] }}</td>
+                                <td class="px-6 py-4 text-center font-semibold">
+                                    @if($stats['waktu_tunggu_poli']['count'] > 0)
+                                    @if($stats['waktu_tunggu_poli']['median'] < 0) <span
+                                        class="text-rose-500 font-bold">{{ $stats['waktu_tunggu_poli']['median']
+                                        }}m</span>
+                                        @else
+                                        <span class="text-blue-600 dark:text-blue-400">{{
+                                            $stats['waktu_tunggu_poli']['median'] }}m</span>
+                                        @endif
+                                        @else
+                                        <span class="text-slate-300">—</span>
+                                        @endif
+                                </td>
+                                <td class="px-6 py-4 text-center font-semibold">
+                                    @if($stats['waktu_layan_poli']['count'] > 0)
+                                    @if($stats['waktu_layan_poli']['median'] < 0) <span class="text-rose-500 font-bold">
+                                        {{ $stats['waktu_layan_poli']['median'] }}m</span>
+                                        @else
+                                        <span class="text-emerald-600 dark:text-emerald-400">{{
+                                            $stats['waktu_layan_poli']['median'] }}m</span>
+                                        @endif
+                                        @else
+                                        <span class="text-slate-300">—</span>
+                                        @endif
+                                </td>
+                                <td class="px-6 py-4 text-center font-semibold">
+                                    @if($stats['total_waktu_rs']['count'] > 0)
+                                    @if($stats['total_waktu_rs']['median'] < 0) <span class="text-rose-500 font-bold">{{
+                                        $stats['total_waktu_rs']['median'] }}m</span>
+                                        @else
+                                        <span class="text-purple-600 dark:text-purple-400 font-bold">{{
+                                            $stats['total_waktu_rs']['median'] }}m</span>
+                                        @endif
+                                        @else
+                                        <span class="text-slate-300">—</span>
+                                        @endif
+                                </td>
+                            </tr>
                             @endforeach
                         </tbody>
                     </table>
@@ -352,7 +584,8 @@
 
             <!-- Doctors Load Summary Table -->
             <div class="glass rounded-[32px] overflow-hidden shadow-sm">
-                <div class="px-8 py-6 border-b border-slate-200/50 dark:border-slate-800/50 flex justify-between items-center">
+                <div
+                    class="px-8 py-6 border-b border-slate-200/50 dark:border-slate-800/50 flex justify-between items-center">
                     <h3 class="text-lg font-bold tracking-tight flex items-center gap-2">
                         <i class="fas fa-user-md text-emerald-600"></i> Beban Kerja & Median Durasi Dokter
                     </h3>
@@ -360,7 +593,8 @@
                 <div class="overflow-x-auto max-h-[320px] overflow-y-auto">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
-                            <tr class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40">
+                            <tr
+                                class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40">
                                 <th class="px-6 py-4">Nama Dokter</th>
                                 <th class="px-6 py-4 text-center">Pasien</th>
                                 <th class="px-6 py-4 text-center">Med. Layan Poli</th>
@@ -369,12 +603,34 @@
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                             @foreach ($analytics['doctor_stats'] as $doctor => $stats)
-                                <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors font-medium">
-                                    <td class="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{{ $doctor }}</td>
-                                    <td class="px-6 py-4 text-center">{{ $stats['patient_count'] }}</td>
-                                    <td class="px-6 py-4 text-center text-emerald-600 dark:text-emerald-400 font-semibold">{{ $stats['waktu_layan_poli']['median'] }}m</td>
-                                    <td class="px-6 py-4 text-center text-purple-600 dark:text-purple-400 font-bold">{{ $stats['total_waktu_rs']['median'] }}m</td>
-                                </tr>
+                            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors font-medium">
+                                <td class="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{{ $doctor }}</td>
+                                <td class="px-6 py-4 text-center">{{ $stats['patient_count'] }}</td>
+                                <td class="px-6 py-4 text-center font-semibold">
+                                    @if($stats['waktu_layan_poli']['count'] > 0)
+                                    @if($stats['waktu_layan_poli']['median'] < 0) <span class="text-rose-500 font-bold">
+                                        {{ $stats['waktu_layan_poli']['median'] }}m</span>
+                                        @else
+                                        <span class="text-emerald-600 dark:text-emerald-400">{{
+                                            $stats['waktu_layan_poli']['median'] }}m</span>
+                                        @endif
+                                        @else
+                                        <span class="text-slate-300">—</span>
+                                        @endif
+                                </td>
+                                <td class="px-6 py-4 text-center font-semibold">
+                                    @if($stats['total_waktu_rs']['count'] > 0)
+                                    @if($stats['total_waktu_rs']['median'] < 0) <span class="text-rose-500 font-bold">{{
+                                        $stats['total_waktu_rs']['median'] }}m</span>
+                                        @else
+                                        <span class="text-purple-600 dark:text-purple-400 font-bold">{{
+                                            $stats['total_waktu_rs']['median'] }}m</span>
+                                        @endif
+                                        @else
+                                        <span class="text-slate-300">—</span>
+                                        @endif
+                                </td>
+                            </tr>
                             @endforeach
                         </tbody>
                     </table>
@@ -384,43 +640,53 @@
 
         <!-- Patients Registry List Table -->
         <div class="glass rounded-[32px] overflow-hidden shadow-sm" id="patient-registry-card">
-            <div class="px-8 py-6 border-b border-slate-200/50 dark:border-slate-800/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div
+                class="px-8 py-6 border-b border-slate-200/50 dark:border-slate-800/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h3 class="text-xl font-bold tracking-tight">Daftar Detail Waktu Kunjungan Pasien</h3>
-                    <p class="text-xs text-slate-400 mt-1">Daftar lengkap pasien BPJS beserta durasi antar task pelayanan</p>
+                    <p class="text-xs text-slate-400 mt-1">Daftar lengkap pasien BPJS beserta durasi antar task
+                        pelayanan</p>
                 </div>
 
                 <!-- Filters Control -->
                 <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
                     <!-- Auto-Refresh Toggle -->
-                    <label class="inline-flex items-center gap-2 cursor-pointer bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm select-none">
-                        <input type="checkbox" id="auto-refresh-toggle" class="rounded text-blue-600 focus:ring-blue-500">
+                    <label
+                        class="inline-flex items-center gap-2 cursor-pointer bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm select-none">
+                        <input type="checkbox" id="auto-refresh-toggle"
+                            class="rounded text-blue-600 focus:ring-blue-500">
                         <span class="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1">
                             <i class="fas fa-sync text-blue-500" id="auto-refresh-icon"></i> Refresh (30s)
                         </span>
                     </label>
 
-                    <input type="text" id="search-patient" placeholder="Cari nama / RM..." class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-48 transition-all">
-                    
-                    <select id="filter-clinic" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500 text-slate-600 dark:text-slate-400">
+                    <input type="text" id="search-patient" placeholder="Cari nama / RM..."
+                        class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-48 transition-all">
+
+                    <select id="filter-clinic"
+                        class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500 text-slate-600 dark:text-slate-400">
                         <option value="">Semua Klinik</option>
                         @foreach (array_keys($analytics['clinic_stats']) as $c)
-                            <option value="{{ $c }}">{{ $c }}</option>
+                        <option value="{{ $c }}">{{ $c }}</option>
                         @endforeach
                     </select>
 
-                    <select id="filter-status" class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500 text-slate-600 dark:text-slate-400">
+                    <select id="filter-status"
+                        class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500 text-slate-600 dark:text-slate-400">
                         <option value="">Semua Status</option>
-                        <option value="Lengkap (3,4,5,6,7)">Lengkap 3-7</option>
-                        <option value="Lengkap (3,4,5,6)">Lengkap 3-6</option>
-                        <option value="Lengkap (3,4,5)">Lengkap 3-5</option>
-                        <option value="Belum Lengkap">Belum Lengkap</option>
-                        <option value="Tidak Hadir / Batal">Tidak Hadir / Batal</option>
+                        <option value="completed">Lengkap</option>
+                        <option value="pharmacy">Farmasi</option>
+                        <option value="doctor">Dokter</option>
+                        <option value="nurse">Perawat</option>
+                        <option value="checkin">Check-in</option>
+                        <option value="waiting">Menunggu</option>
+                        <option value="Tidak Hadir / Batal">Batal</option>
                         <option value="anomali">Hanya Anomali Data</option>
                     </select>
 
                     <!-- Export to CSV Button -->
-                    <button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-sm font-bold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/10">
+                    <button onclick="exportToCSV()"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2 text-sm font-bold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/10">
                         <i class="fas fa-file-csv"></i> Ekspor CSV
                     </button>
                 </div>
@@ -429,153 +695,174 @@
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[1200px] text-left border-collapse text-sm" id="patients-table">
                     <thead>
-                        <tr class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40">
+                        <tr
+                            class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40">
                             <th class="px-8 py-4 w-[280px]">Pasien</th>
                             <th class="px-8 py-4 w-[260px]">Poliklinik / Dokter</th>
                             <th class="px-8 py-4 text-center w-[120px]">Tunggu Poli</th>
                             <th class="px-8 py-4 text-center w-[120px]">Layan Poli</th>
                             <th class="px-8 py-4 text-center w-[120px]">Tunggu Farm.</th>
                             <th class="px-8 py-4 text-center w-[120px]">Total RS</th>
-                            <th class="px-8 py-4 text-center w-[130px]">Sync BPJS</th>
+                            <th class="px-8 py-4 text-center w-[130px]">Status</th>
                             <th class="px-8 py-4 text-center w-[100px]">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                         @foreach ($analytics['patients'] as $p)
-                            <tr class="patient-row hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group cursor-pointer" 
-                                onclick="showPatientDetail('{{ $p['no_rawat'] }}')"
-                                data-name="{{ strtolower($p['nm_pasien']) }}" 
-                                data-rm="{{ $p['no_rkm_medis'] }}"
-                                data-clinic="{{ $p['nm_poli'] }}"
-                                data-status="{{ $p['status'] }}"
-                                data-has-anomali="{{ $p['has_anomalies'] ? 'true' : 'false' }}"
-                                data-anomalies="{{ implode(',', $p['anomalies']) }}">
-                                <td class="px-8 py-5">
-                                    <div class="flex flex-col whitespace-normal">
-                                        <span class="font-bold text-slate-800 dark:text-slate-200 flex flex-wrap items-center gap-1.5 leading-snug">
-                                            {{ $p['nm_pasien'] }}
-                                            @if ($p['has_anomalies'])
-                                                <span class="inline-flex px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[9px] font-bold tracking-wide uppercase" title="Memiliki Anomali Data">
-                                                    <i class="fas fa-exclamation-triangle mr-0.5"></i> ANOMALI
-                                                </span>
-                                            @endif
+                        <tr class="patient-row hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group cursor-pointer"
+                            onclick="showPatientDetail('{{ $p['no_rawat'] }}')" data-rawat="{{ $p['no_rawat'] }}"
+                            data-name="{{ strtolower($p['nm_pasien']) }}" data-rm="{{ $p['no_rkm_medis'] }}"
+                            data-clinic="{{ $p['nm_poli'] }}" data-status="{{ $p['status'] }}"
+                            data-has-anomali="{{ $p['has_anomalies'] ? 'true' : 'false' }}"
+                            data-anomalies="{{ implode(',', $p['anomalies']) }}"
+                            data-kodebooking="{{ $p['kode_booking'] }}">
+                            <td class="px-8 py-5">
+                                <div class="flex flex-col whitespace-normal">
+                                    <span
+                                        class="font-bold text-slate-800 dark:text-slate-200 flex flex-wrap items-center gap-1.5 leading-snug">
+                                        {{ $p['nm_pasien'] }}
+                                        @if ($p['has_anomalies'])
+                                        <span
+                                            class="inline-flex px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-[9px] font-bold tracking-wide uppercase"
+                                            title="Memiliki Anomali Data">
+                                            <i class="fas fa-exclamation-triangle mr-0.5"></i> ANOMALI
                                         </span>
-                                        <span class="text-[11px] text-slate-400 font-semibold mt-1">RM: {{ $p['no_rkm_medis'] }} &bull; Jam Reg: {{ $p['jam_reg'] }}</span>
-                                    </div>
-                                </td>
-                                <td class="px-8 py-5">
-                    <div class="flex flex-col whitespace-normal">
-                                        <span class="text-slate-700 dark:text-slate-300 font-bold text-xs leading-snug">{{ $p['nm_poli'] }}</span>
-                                        <span class="text-[11px] text-slate-400 font-semibold mt-1 leading-snug">{{ $p['nm_dokter'] }}</span>
-                                    </div>
-                                </td>
-                                 @php
-                                     $wtp = $p['durations']['waktu_tunggu_poli'];
-                                     $wlp = $p['durations']['waktu_layan_poli'];
-                                     $wtf = $p['durations']['waktu_tunggu_farmasi'];
-                                     $twr = $p['durations']['total_waktu_rs'];
-                                 @endphp
-                                 <td class="px-8 py-5 text-center text-blue-600 dark:text-blue-400 font-semibold">
-                                     @if($wtp !== null)
-                                         @if($wtp < 0)
-                                             <span class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs" title="Anomali: Durasi Negatif">{{ round($wtp, 1) }}m</span>
-                                         @else
-                                             {{ round($wtp, 1) }}m
-                                         @endif
-                                     @else
-                                         -
-                                     @endif
-                                 </td>
-                                 <td class="px-8 py-5 text-center text-emerald-600 dark:text-emerald-400 font-semibold">
-                                     @if($wlp !== null)
-                                         @if($wlp < 0)
-                                             <span class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs" title="Anomali: Durasi Negatif">{{ round($wlp, 1) }}m</span>
-                                         @else
-                                             {{ round($wlp, 1) }}m
-                                         @endif
-                                     @else
-                                         -
-                                     @endif
-                                 </td>
-                                 <td class="px-8 py-5 text-center text-indigo-600 dark:text-indigo-400 font-semibold">
-                                     @if($wtf !== null)
-                                         @if($wtf < 0)
-                                             <span class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs" title="Anomali: Durasi Negatif">{{ round($wtf, 1) }}m</span>
-                                         @else
-                                             {{ round($wtf, 1) }}m
-                                         @endif
-                                     @else
-                                         -
-                                     @endif
-                                 </td>
-                                 <td class="px-8 py-5 text-center text-purple-600 dark:text-purple-400 font-bold">
-                                     @if($twr !== null)
-                                         @if($twr < 0)
-                                             <span class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs" title="Anomali: Durasi Negatif">{{ round($twr, 1) }}m</span>
-                                         @else
-                                             {{ round($twr, 1) }}m
-                                         @endif
-                                     @else
-                                         -
-                                     @endif
-                                 </td>
-                                <td class="px-8 py-5 text-center">
-                                    @if ($p['status'] === 'Tidak Hadir / Batal')
-                                        <span class="px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400">BATAL</span>
-                                    @elseif ($p['has_booking'])
-                                        @php
-                                            $completeTask = 0;
-                                            $sentArray = array_filter($p['timestamps_sent']);
-                                            $completeTask = count($sentArray);
-                                        @endphp
-                                        <div class="flex flex-col items-center gap-1">
-                                            <span class="text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1">
-                                                <i class="fas fa-check-circle text-emerald-500"></i> {{ $completeTask }}/5 Task
-                                            </span>
-                                            <div class="w-12 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                                <div class="h-full bg-emerald-500 rounded-full" style="width: {{ ($completeTask / 5) * 100 }}%"></div>
-                                            </div>
-                                        </div>
+                                        @endif
+                                    </span>
+                                    <span class="text-[11px] text-slate-400 font-semibold mt-1">RM: {{
+                                        $p['no_rkm_medis'] }} &bull; Jam Reg: {{ $p['jam_reg'] }}</span>
+                                </div>
+                            </td>
+                            <td class="px-8 py-5">
+                                <div class="flex flex-col whitespace-normal">
+                                    <span class="text-slate-700 dark:text-slate-300 font-bold text-xs leading-snug">{{
+                                        $p['nm_poli'] }}</span>
+                                    <span class="text-[11px] text-slate-400 font-semibold mt-1 leading-snug">{{
+                                        $p['nm_dokter'] }}</span>
+                                </div>
+                            </td>
+                            @php
+                            $wtp = $p['durations']['waktu_tunggu_poli'] ?? $p['durations']['checkin_to_nurse'];
+                            $wlp = $p['durations']['waktu_layan_poli'] ?? $p['durations']['nurse_to_doctor'];
+                            $wtf = $p['durations']['waktu_tunggu_farmasi'] ?? $p['durations']['doctor_to_pharmacy'];
+                            $twr = $p['durations']['total_waktu_rs'] ?? $p['durations']['total_time'];
+                            @endphp
+                            <td class="px-8 py-5 text-center text-blue-600 dark:text-blue-400 font-semibold">
+                                @if($wtp !== null)
+                                @if($wtp < 0) <span
+                                    class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs"
+                                    title="Anomali: Durasi Negatif">{{ round($wtp, 1) }}m</span>
                                     @else
-                                        <span class="px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">NON-MJKN</span>
+                                    {{ round($wtp, 1) }}m
                                     @endif
-                                </td>
-                                <td class="px-8 py-5 text-center" onclick="event.stopPropagation()">
-                                    <button onclick="showPatientDetail('{{ $p['no_rawat'] }}')" class="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-500/10">
-                                        <i class="fas fa-search-plus text-xs"></i> Detail
-                                    </button>
-                                </td>
-                            </tr>
+                                    @else
+                                    -
+                                    @endif
+                            </td>
+                            <td class="px-8 py-5 text-center text-emerald-600 dark:text-emerald-400 font-semibold">
+                                @if($wlp !== null)
+                                @if($wlp < 0) <span
+                                    class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs"
+                                    title="Anomali: Durasi Negatif">{{ round($wlp, 1) }}m</span>
+                                    @else
+                                    {{ round($wlp, 1) }}m
+                                    @endif
+                                    @else
+                                    -
+                                    @endif
+                            </td>
+                            <td class="px-8 py-5 text-center text-indigo-600 dark:text-indigo-400 font-semibold">
+                                @if($wtf !== null)
+                                @if($wtf < 0) <span
+                                    class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs"
+                                    title="Anomali: Durasi Negatif">{{ round($wtf, 1) }}m</span>
+                                    @else
+                                    {{ round($wtf, 1) }}m
+                                    @endif
+                                    @else
+                                    -
+                                    @endif
+                            </td>
+                            <td class="px-8 py-5 text-center text-purple-600 dark:text-purple-400 font-bold">
+                                @if($twr !== null)
+                                @if($twr < 0) <span
+                                    class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs"
+                                    title="Anomali: Durasi Negatif">{{ round($twr, 1) }}m</span>
+                                    @else
+                                    {{ round($twr, 1) }}m
+                                    @endif
+                                    @else
+                                    -
+                                    @endif
+                            </td>
+                            <td class="px-8 py-5 text-center">
+                                <div class="flex flex-col gap-1 items-center justify-center">
+                                    @if ($p['status'] === 'Tidak Hadir / Batal')
+                                    <span class="status-badge status-badge-rose">Batal</span>
+                                    @elseif ($p['status'] === 'completed')
+                                    <span class="status-badge status-badge-green">Lengkap</span>
+                                    @elseif ($p['status'] === 'pharmacy')
+                                    <span class="status-badge status-badge-blue">Farmasi</span>
+                                    @elseif ($p['status'] === 'doctor')
+                                    <span class="status-badge status-badge-purple">Dokter</span>
+                                    @elseif ($p['status'] === 'nurse')
+                                    <span class="status-badge status-badge-indigo">Perawat</span>
+                                    @elseif ($p['status'] === 'checkin')
+                                    <span class="status-badge status-badge-amber">Check-in</span>
+                                    @else
+                                    <span class="status-badge status-badge-slate">Menunggu</span>
+                                    @endif
+                                    <span class="sync-status badge {{ $p['sync_status'] === 'synced' ? 'badge-green' : 'badge-slate' }} text-[9px]">
+                                        {{ $p['sync_status'] === 'synced' ? 'BPJS' : 'SIMRS' }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="px-8 py-5 text-center" onclick="event.stopPropagation()">
+                                <button onclick="showPatientDetail('{{ $p['no_rawat'] }}')"
+                                    class="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-500/10">
+                                    <i class="fas fa-search-plus text-xs"></i> Detail
+                                </button>
+                            </td>
+                        </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-            
+
             <!-- Pagination Controls -->
-            <div class="px-8 py-5 border-t border-slate-200/50 dark:border-slate-800/50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-800/10" id="pagination-controls-bar">
+            <div class="px-8 py-5 border-t border-slate-200/50 dark:border-slate-800/50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-800/10"
+                id="pagination-controls-bar">
                 <div class="text-xs font-semibold text-slate-500">
-                    Menampilkan <span id="pagination-info-start" class="font-bold text-slate-700 dark:text-slate-300">1</span> - <span id="pagination-info-end" class="font-bold text-slate-700 dark:text-slate-300">25</span> dari <span id="pagination-info-total" class="font-bold text-slate-700 dark:text-slate-300">0</span> pasien
+                    Menampilkan <span id="pagination-info-start"
+                        class="font-bold text-slate-700 dark:text-slate-300">1</span> - <span id="pagination-info-end"
+                        class="font-bold text-slate-700 dark:text-slate-300">25</span> dari <span
+                        id="pagination-info-total" class="font-bold text-slate-700 dark:text-slate-300">0</span> pasien
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <button onclick="changePage(1)" id="btn-page-first" class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onclick="changePage(1)" id="btn-page-first"
+                        class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
                         <i class="fas fa-angle-double-left"></i>
                     </button>
-                    <button onclick="changePage(currentPage - 1)" id="btn-page-prev" class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onclick="changePage(currentPage - 1)" id="btn-page-prev"
+                        class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
                         <i class="fas fa-angle-left"></i> Prev
                     </button>
                     <div id="pagination-pages" class="flex items-center gap-1.5">
                         <!-- JS renders page buttons here -->
                     </div>
-                    <button onclick="changePage(currentPage + 1)" id="btn-page-next" class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onclick="changePage(currentPage + 1)" id="btn-page-next"
+                        class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
                         Next <i class="fas fa-angle-right"></i>
                     </button>
-                    <button onclick="changePage(totalPages)" id="btn-page-last" class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onclick="changePage(totalPages)" id="btn-page-last"
+                        class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
                         <i class="fas fa-angle-double-right"></i>
                     </button>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-semibold text-slate-400">Baris per halaman:</span>
-                    <select id="pagination-page-size" onchange="changePageSize(this.value)" class="bg-slate-100 dark:bg-slate-850 border-none rounded-xl px-2.5 py-1.5 text-xs font-bold outline-none text-slate-600 dark:text-slate-400">
+                    <select id="pagination-page-size" onchange="changePageSize(this.value)"
+                        class="bg-slate-100 dark:bg-slate-850 border-none rounded-xl px-2.5 py-1.5 text-xs font-bold outline-none text-slate-600 dark:text-slate-400">
                         <option value="10">10</option>
                         <option value="25" selected>25</option>
                         <option value="50">50</option>
@@ -584,8 +871,10 @@
                 </div>
             </div>
 
-            <div id="no-patients-found" class="hidden px-8 py-20 text-center space-y-4 border-t border-slate-100 dark:border-slate-800">
-                <div class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-400">
+            <div id="no-patients-found"
+                class="hidden px-8 py-20 text-center space-y-4 border-t border-slate-100 dark:border-slate-800">
+                <div
+                    class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-400">
                     <i class="fas fa-users-slash text-3xl"></i>
                 </div>
                 <div>
@@ -603,7 +892,8 @@
                 <i class="fas fa-globe text-teal-600"></i> Rapor Resmi Kinerja Waktu Tunggu Server BPJS Kesehatan
             </h2>
             <p class="text-slate-500 dark:text-slate-400 text-sm max-w-2xl mb-8">
-                Data di bawah ini ditarik secara real-time langsung dari web service BPJS Kesehatan (Dashboard Waktu Antrean). Ini adalah nilai agregat resmi yang diakui oleh BPJS.
+                Data di bawah ini ditarik secara real-time langsung dari web service BPJS Kesehatan (Dashboard Waktu
+                Antrean). Ini adalah nilai agregat resmi yang diakui oleh BPJS.
             </p>
 
             <div id="bpjs-report-loading" class="hidden flex-col items-center justify-center py-20 space-y-4">
@@ -612,13 +902,15 @@
             </div>
 
             <div id="bpjs-report-empty" class="flex flex-col items-center justify-center py-20 text-center space-y-4">
-                <div class="w-24 h-24 bg-teal-50 dark:bg-teal-500/10 rounded-[35px] flex items-center justify-center text-teal-600 text-4xl shadow-xl shadow-teal-500/5">
+                <div
+                    class="w-24 h-24 bg-teal-50 dark:bg-teal-500/10 rounded-[35px] flex items-center justify-center text-teal-600 text-4xl shadow-xl shadow-teal-500/5">
                     <i class="fas fa-network-wired"></i>
                 </div>
                 <div>
                     <h4 class="text-xl font-bold">Menunggu Permintaan Data</h4>
                     <p class="text-sm text-slate-500 mt-2 max-w-sm">
-                        Gunakan tombol filter di atas ("Rapor Harian" atau "Rapor Bulanan") untuk memicu penarikan data dari API BPJS.
+                        Gunakan tombol filter di atas ("Rapor Harian" atau "Rapor Bulanan") untuk memicu penarikan data
+                        dari API BPJS.
                     </p>
                 </div>
             </div>
@@ -627,106 +919,151 @@
                 <!-- Aggregate Stats Cards (Premium HSL Style) -->
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
                     <!-- Card 1: Total Queue -->
-                    <div class="bg-slate-50/30 dark:bg-slate-900/20 border-l-4 border-l-teal-500 border border-slate-200/40 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm hover:scale-[1.02] transition-transform duration-300">
+                    <div
+                        class="bg-slate-50/30 dark:bg-slate-900/20 border-l-4 border-l-teal-500 border border-slate-200/40 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm hover:scale-[1.02] transition-transform duration-300">
                         <div class="flex justify-between items-start">
                             <div>
-                                <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Total Antrean Resmi</span>
-                                <p class="text-3xl font-extrabold text-teal-600 dark:text-teal-400 mt-2 leading-none" id="bpjs-stat-queues">0</p>
+                                <span
+                                    class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Total
+                                    Antrean Resmi</span>
+                                <p class="text-3xl font-extrabold text-teal-600 dark:text-teal-400 mt-2 leading-none"
+                                    id="bpjs-stat-queues">0</p>
                             </div>
-                            <span class="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center text-xs">
+                            <span
+                                class="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center text-xs">
                                 <i class="fas fa-users"></i>
                             </span>
                         </div>
-                        <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-3.5">Terverifikasi pada server BPJS</p>
+                        <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-3.5">Terverifikasi pada
+                            server BPJS</p>
                     </div>
 
                     <!-- Card 2: Tunggu Poli -->
-                    <div class="bg-slate-50/30 dark:bg-slate-900/20 border-l-4 border-l-blue-500 border border-slate-200/40 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm hover:scale-[1.02] transition-transform duration-300">
+                    <div
+                        class="bg-slate-50/30 dark:bg-slate-900/20 border-l-4 border-l-blue-500 border border-slate-200/40 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm hover:scale-[1.02] transition-transform duration-300">
                         <div class="flex justify-between items-start">
                             <div>
-                                <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Rerata Tunggu Poli</span>
-                                <p class="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mt-2 leading-none" id="bpjs-stat-wait-poli">0.0m</p>
+                                <span
+                                    class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Rerata
+                                    Tunggu Poli</span>
+                                <p class="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mt-2 leading-none"
+                                    id="bpjs-stat-wait-poli">0.0m</p>
                             </div>
-                            <span class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs">
+                            <span
+                                class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs">
                                 <i class="fas fa-clock"></i>
                             </span>
                         </div>
-                        <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-3.5">Task 3: Menunggu panggilan dokter</p>
+                        <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-3.5">Task 3: Menunggu
+                            panggilan dokter</p>
                     </div>
 
                     <!-- Card 3: Layan Poli -->
-                    <div class="bg-slate-50/30 dark:bg-slate-900/20 border-l-4 border-l-emerald-500 border border-slate-200/40 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm hover:scale-[1.02] transition-transform duration-300">
+                    <div
+                        class="bg-slate-50/30 dark:bg-slate-900/20 border-l-4 border-l-emerald-500 border border-slate-200/40 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm hover:scale-[1.02] transition-transform duration-300">
                         <div class="flex justify-between items-start">
                             <div>
-                                <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Rerata Layan Poli</span>
-                                <p class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2 leading-none" id="bpjs-stat-poli">0.0m</p>
+                                <span
+                                    class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Rerata
+                                    Layan Poli</span>
+                                <p class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2 leading-none"
+                                    id="bpjs-stat-poli">0.0m</p>
                             </div>
-                            <span class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs">
+                            <span
+                                class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs">
                                 <i class="fas fa-stethoscope"></i>
                             </span>
                         </div>
-                        <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-3.5">Task 4: Pemeriksaan dokter</p>
+                        <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-3.5">Task 4: Pemeriksaan
+                            dokter</p>
                     </div>
 
                     <!-- Card 4: Layan Farmasi -->
-                    <div class="bg-slate-50/30 dark:bg-slate-900/20 border-l-4 border-l-purple-500 border border-slate-200/40 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm hover:scale-[1.02] transition-transform duration-300">
+                    <div
+                        class="bg-slate-50/30 dark:bg-slate-900/20 border-l-4 border-l-purple-500 border border-slate-200/40 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm hover:scale-[1.02] transition-transform duration-300">
                         <div class="flex justify-between items-start">
                             <div>
-                                <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Rerata Layan Farmasi</span>
-                                <p class="text-3xl font-extrabold text-purple-600 dark:text-purple-400 mt-2 leading-none" id="bpjs-stat-farmasi">0.0m</p>
+                                <span
+                                    class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Rerata
+                                    Layan Farmasi</span>
+                                <p class="text-3xl font-extrabold text-purple-600 dark:text-purple-400 mt-2 leading-none"
+                                    id="bpjs-stat-farmasi">0.0m</p>
                             </div>
-                            <span class="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xs">
+                            <span
+                                class="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xs">
                                 <i class="fas fa-capsules"></i>
                             </span>
                         </div>
-                        <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-3.5">Task 6: Penyiapan obat resep</p>
+                        <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-3.5">Task 6: Penyiapan
+                            obat resep</p>
                     </div>
 
                     <!-- Card 5: Rerata Total Waktu -->
-                    <div class="bg-slate-50/30 dark:bg-slate-900/20 border-l-4 border-l-amber-500 border border-slate-200/40 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm hover:scale-[1.02] transition-transform duration-300">
+                    <div
+                        class="bg-slate-50/30 dark:bg-slate-900/20 border-l-4 border-l-amber-500 border border-slate-200/40 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm hover:scale-[1.02] transition-transform duration-300">
                         <div class="flex justify-between items-start">
                             <div>
-                                <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Rerata Total Pelayanan</span>
-                                <p class="text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-2 leading-none" id="bpjs-stat-total-time">0.0m</p>
+                                <span
+                                    class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Rerata
+                                    Total Pelayanan</span>
+                                <p class="text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-2 leading-none"
+                                    id="bpjs-stat-total-time">0.0m</p>
                             </div>
-                            <span class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs">
+                            <span
+                                class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs">
                                 <i class="fas fa-history"></i>
                             </span>
                         </div>
-                        <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-3.5">Total akumulasi Task 1 s/d 6</p>
+                        <p class="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-3.5">Total akumulasi
+                            Task 1 s/d 6</p>
                     </div>
                 </div>
 
                 <!-- Quick Insights Row -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="bpjs-insights-row">
                     <!-- Insight 1: Highest Queue -->
-                    <div class="bg-teal-500/5 border border-teal-500/10 dark:border-teal-500/20 p-4 rounded-2xl flex items-center gap-4">
-                        <span class="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center text-sm shrink-0">
+                    <div
+                        class="bg-teal-500/5 border border-teal-500/10 dark:border-teal-500/20 p-4 rounded-2xl flex items-center gap-4">
+                        <span
+                            class="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center text-sm shrink-0">
                             <i class="fas fa-fire"></i>
                         </span>
                         <div>
-                            <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Poliklinik Terpadat</span>
-                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mt-1" id="bpjs-insight-busiest">-</p>
+                            <span
+                                class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Poliklinik
+                                Terpadat</span>
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mt-1"
+                                id="bpjs-insight-busiest">-</p>
                         </div>
                     </div>
                     <!-- Insight 2: Longest Wait -->
-                    <div class="bg-amber-500/5 border border-amber-500/10 dark:border-amber-500/20 p-4 rounded-2xl flex items-center gap-4">
-                        <span class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-sm shrink-0">
+                    <div
+                        class="bg-amber-500/5 border border-amber-500/10 dark:border-amber-500/20 p-4 rounded-2xl flex items-center gap-4">
+                        <span
+                            class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-sm shrink-0">
                             <i class="fas fa-hourglass-half"></i>
                         </span>
                         <div>
-                            <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Antrean Poli Terlama</span>
-                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mt-1" id="bpjs-insight-longest-wait">-</p>
+                            <span
+                                class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Antrean
+                                Poli Terlama</span>
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mt-1"
+                                id="bpjs-insight-longest-wait">-</p>
                         </div>
                     </div>
                     <!-- Insight 3: Longest Layan -->
-                    <div class="bg-rose-500/5 border border-rose-500/10 dark:border-rose-500/20 p-4 rounded-2xl flex items-center gap-4">
-                        <span class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center text-sm shrink-0">
+                    <div
+                        class="bg-rose-500/5 border border-rose-500/10 dark:border-rose-500/20 p-4 rounded-2xl flex items-center gap-4">
+                        <span
+                            class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center text-sm shrink-0">
                             <i class="fas fa-user-md"></i>
                         </span>
                         <div>
-                            <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pelayanan Dokter Terlama</span>
-                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mt-1" id="bpjs-insight-longest-layan">-</p>
+                            <span
+                                class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pelayanan
+                                Dokter Terlama</span>
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mt-1"
+                                id="bpjs-insight-longest-layan">-</p>
                         </div>
                     </div>
                 </div>
@@ -734,15 +1071,19 @@
                 <!-- BPJS Charts Row -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="bpjs-charts-row">
                     <!-- Chart 1: Queue Volume per Poliklinik -->
-                    <div class="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
-                        <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs mb-4">Volume Antrean per Poliklinik (Top 7)</h4>
+                    <div
+                        class="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
+                        <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs mb-4">Volume Antrean per
+                            Poliklinik (Top 7)</h4>
                         <div class="h-64 relative">
                             <canvas id="bpjs-chart-volume"></canvas>
                         </div>
                     </div>
                     <!-- Chart 2: Wait vs Service Times -->
-                    <div class="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
-                        <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs mb-4">Perbandingan Waktu Tunggu & Layan Dokter (Top 7 Menit)</h4>
+                    <div
+                        class="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
+                        <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs mb-4">Perbandingan Waktu Tunggu
+                            & Layan Dokter (Top 7 Menit)</h4>
                         <div class="h-64 relative">
                             <canvas id="bpjs-chart-times"></canvas>
                         </div>
@@ -750,19 +1091,25 @@
                 </div>
 
                 <!-- Detailed Table -->
-                <div class="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
-                    <div class="px-8 py-5 bg-slate-50/50 dark:bg-slate-800/10 border-b border-slate-200/40 dark:border-slate-800/40 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <h4 class="font-bold text-slate-800 dark:text-slate-200 text-sm">Rapor Detail Waktu per Poliklinik (Kalkulasi Server BPJS)</h4>
+                <div
+                    class="bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
+                    <div
+                        class="px-8 py-5 bg-slate-50/50 dark:bg-slate-800/10 border-b border-slate-200/40 dark:border-slate-800/40 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <h4 class="font-bold text-slate-800 dark:text-slate-200 text-sm">Rapor Detail Waktu per
+                            Poliklinik (Kalkulasi Server BPJS)</h4>
                         <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
                             <!-- Search input -->
                             <div class="relative w-full sm:w-64">
                                 <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                                     <i class="fas fa-search text-xs"></i>
                                 </span>
-                                <input type="text" id="bpjs-search-input" onkeyup="handleBpjsSearch()" placeholder="Cari poliklinik atau tanggal..." class="w-full pl-9 pr-4 py-2 text-xs font-semibold rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors">
+                                <input type="text" id="bpjs-search-input" onkeyup="handleBpjsSearch()"
+                                    placeholder="Cari poliklinik atau tanggal..."
+                                    class="w-full pl-9 pr-4 py-2 text-xs font-semibold rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors">
                             </div>
                             <!-- Page size select -->
-                            <select id="bpjs-page-size" onchange="changeBpjsPageSize(this.value)" class="px-3 py-2 text-xs font-bold rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors">
+                            <select id="bpjs-page-size" onchange="changeBpjsPageSize(this.value)"
+                                class="px-3 py-2 text-xs font-bold rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors">
                                 <option value="10">10 Baris</option>
                                 <option value="25" selected>25 Baris</option>
                                 <option value="50">50 Baris</option>
@@ -773,7 +1120,8 @@
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse text-sm" id="bpjs-report-table">
                             <thead>
-                                <tr class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40">
+                                <tr
+                                    class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40">
                                     <th class="px-6 py-4">Tanggal</th>
                                     <th class="px-6 py-4">Poliklinik BPJS</th>
                                     <th class="px-6 py-4 text-center">Jumlah Antrean</th>
@@ -793,43 +1141,98 @@
                     </div>
 
                     <!-- BPJS Pagination Controls -->
-                    <div class="px-8 py-5 border-t border-slate-200/50 dark:border-slate-800/50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-800/10" id="bpjs-pagination-controls-bar">
+                    <div class="px-8 py-5 border-t border-slate-200/50 dark:border-slate-800/50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-800/10"
+                        id="bpjs-pagination-controls-bar">
                         <div class="text-xs font-semibold text-slate-500">
-                            Menampilkan <span id="bpjs-pagination-info-start" class="font-bold text-slate-700 dark:text-slate-300">0</span> - <span id="bpjs-pagination-info-end" class="font-bold text-slate-700 dark:text-slate-300">0</span> dari <span id="bpjs-pagination-info-total" class="font-bold text-slate-700 dark:text-slate-300">0</span> baris
+                            Menampilkan <span id="bpjs-pagination-info-start"
+                                class="font-bold text-slate-700 dark:text-slate-300">0</span> - <span
+                                id="bpjs-pagination-info-end"
+                                class="font-bold text-slate-700 dark:text-slate-300">0</span> dari <span
+                                id="bpjs-pagination-info-total"
+                                class="font-bold text-slate-700 dark:text-slate-300">0</span> baris
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <button onclick="changeBpjsPage(1)" id="btn-bpjs-page-first" class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button onclick="changeBpjsPage(1)" id="btn-bpjs-page-first"
+                                class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
                                 <i class="fas fa-angle-double-left"></i>
                             </button>
-                            <button onclick="changeBpjsPage(bpjsCurrentPage - 1)" id="btn-bpjs-page-prev" class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button onclick="changeBpjsPage(bpjsCurrentPage - 1)" id="btn-bpjs-page-prev"
+                                class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
                                 <i class="fas fa-angle-left"></i> Prev
                             </button>
                             <div id="bpjs-pagination-pages" class="flex items-center gap-1.5">
                                 <!-- JS renders page buttons here -->
                             </div>
-                            <button onclick="changeBpjsPage(bpjsCurrentPage + 1)" id="btn-bpjs-page-next" class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button onclick="changeBpjsPage(bpjsCurrentPage + 1)" id="btn-bpjs-page-next"
+                                class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
                                 Next <i class="fas fa-angle-right"></i>
                             </button>
-                            <button onclick="changeBpjsPage(bpjsTotalPages)" id="btn-bpjs-page-last" class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button onclick="changeBpjsPage(bpjsTotalPages)" id="btn-bpjs-page-last"
+                                class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
                                 <i class="fas fa-angle-double-right"></i>
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- COMPARE: SIMRS Internal vs BPJS Resmi -->
+            <div id="bpjs-compare-section"
+                class="hidden mt-8 bg-slate-50/40 dark:bg-slate-800/10 border border-slate-200/50 dark:border-slate-800 rounded-3xl p-6">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                    <i class="fas fa-balance-scale text-blue-600"></i> Perbandingan: Kalkulasi SIMRS vs Angka Resmi BPJS
+                </h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-6">
+                    Median dari DB SIMRS (data riil tanpa fallback) dibandingkan dengan rerata agregat resmi dari server
+                    BPJS pada tanggal/bulan yang sama.
+                    Selisih menunjukkan seberapa jauh data yang dikirim ke BPJS berbeda dari kondisi aktual di lapangan.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr
+                                class="bg-white dark:bg-slate-900 border-b border-slate-200/50 dark:border-slate-800 text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                <th class="px-4 py-3 text-left">Dimensi Waktu</th>
+                                <th class="px-4 py-3 text-center text-blue-600 dark:text-blue-400">SIMRS (Median)</th>
+                                <th class="px-4 py-3 text-center text-teal-600 dark:text-teal-400">BPJS Resmi
+                                    (Rata-rata)</th>
+                                <th class="px-4 py-3 text-center">Selisih</th>
+                                <th class="px-4 py-3 text-center">Keterangan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="compare-table-body"
+                            class="divide-y divide-slate-100 dark:divide-slate-800 font-semibold">
+                            <tr>
+                                <td colspan="5" class="text-center text-slate-400 text-xs py-8">
+                                    Ambil rapor BPJS terlebih dahulu untuk menampilkan perbandingan ini.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-4">
+                    ⚠ BPJS menggunakan rata-rata (mean), SIMRS menggunakan median. Selisih kecil (~5m) bisa karena
+                    perbedaan metode statistik.
+                    Selisih besar (>15 menit) perlu diinvestigasi — kemungkinan besar akibat fallback random di
+                    pengiriman Task ID.
+                </p>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- SLIDE-OVER DETAIL PANEL (AJAX LOADED) -->
-<div id="slide-detail-panel" class="slide-panel fixed top-0 right-0 h-full w-full md:w-[480px] bg-white dark:bg-slate-950 shadow-2xl z-[80] translate-x-full border-l border-slate-200 dark:border-slate-800 flex flex-col">
+<div id="slide-detail-panel"
+    class="slide-panel fixed top-0 right-0 h-full w-full md:w-[480px] bg-white dark:bg-slate-950 shadow-2xl z-[80] translate-x-full border-l border-slate-200 dark:border-slate-800 flex flex-col">
     <!-- Header -->
-    <div class="px-8 py-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-blue-600/5 dark:bg-blue-900/10">
+    <div
+        class="px-8 py-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-blue-600/5 dark:bg-blue-900/10">
         <div>
             <h3 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Detail Kunjungan & Timeline</h3>
             <p class="text-xs text-slate-400 mt-1">SIMRS vs BPJS Timestamp Analysis</p>
         </div>
-        <button onclick="closeDetailPanel()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-300 transition-colors">
+        <button onclick="closeDetailPanel()"
+            class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-300 transition-colors">
             <i class="fas fa-times"></i>
         </button>
     </div>
@@ -840,13 +1243,39 @@
     </div>
 
     <!-- Panel Actions Footer -->
-    <div class="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3" id="panel-footer">
+    <div class="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3"
+        id="panel-footer">
         <!-- JS dynamically renders verify and cancel buttons -->
     </div>
 </div>
 
 <!-- Slide-over Backdrop Overlay -->
-<div id="panel-overlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-[70] hidden transition-opacity opacity-0" onclick="closeDetailPanel()"></div>
+<div id="panel-overlay"
+    class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-[70] hidden transition-opacity opacity-0"
+    onclick="closeDetailPanel()"></div>
+
+<!-- CLINIC DETAIL MODAL -->
+<div id="clinic-detail-modal"
+    class="hidden fixed inset-0 z-[90] items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div
+        class="bg-white dark:bg-slate-950 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col border border-slate-200 dark:border-slate-800">
+        <div
+            class="flex justify-between items-center px-8 py-5 border-b border-slate-200 dark:border-slate-800 bg-blue-600/5 dark:bg-blue-900/10 rounded-t-3xl shrink-0">
+            <div>
+                <p class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-1">Detail Statistik Poliklinik
+                </p>
+                <h4 id="clinic-detail-title" class="text-lg font-bold text-slate-900 dark:text-white"></h4>
+            </div>
+            <button onclick="closeClinicModal()"
+                class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                <i class="fas fa-times text-slate-500"></i>
+            </button>
+        </div>
+        <div id="clinic-detail-content" class="overflow-y-auto p-6 flex-grow">
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('styles')
@@ -855,25 +1284,30 @@
     .slide-panel {
         transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
+
     .slide-panel.open {
         transform: translateX(0);
     }
-    
+
     /* Animation pulse for duration badges */
     .flow-duration {
         animation: duration-pulse 3s infinite ease-in-out;
     }
+
     @keyframes duration-pulse {
-        0%, 100% {
+
+        0%,
+        100% {
             opacity: 1;
             transform: scale(1);
         }
+
         50% {
             opacity: 0.9;
             transform: scale(1.03);
         }
     }
-    
+
     /* Vertical line for patient chronological list */
     .patient-timeline-line {
         position: absolute;
@@ -881,6 +1315,80 @@
         top: 24px;
         bottom: 24px;
         width: 2px;
+    }
+
+    /* Status Badge Styling ala ANT-1 */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        letter-spacing: 0.025em;
+        text-transform: uppercase;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    .status-badge-green {
+        background-color: #ecfdf5;
+        color: #059669;
+    }
+
+    .dark .status-badge-green {
+        background-color: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+    }
+
+    .status-badge-blue {
+        background-color: #eff6ff;
+        color: #2563eb;
+    }
+
+    .dark .status-badge-blue {
+        background-color: rgba(59, 130, 246, 0.15);
+        color: #60a5fa;
+    }
+
+    .status-badge-purple {
+        background-color: #faf5ff;
+        color: #7c3aed;
+    }
+
+    .dark .status-badge-purple {
+        background-color: rgba(139, 92, 246, 0.15);
+        color: #a78bfa;
+    }
+
+    .status-badge-amber {
+        background-color: #fffbeb;
+        color: #d97706;
+    }
+
+    .dark .status-badge-amber {
+        background-color: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+    }
+
+    .status-badge-rose {
+        background-color: #fff1f2;
+        color: #e11d48;
+    }
+
+    .dark .status-badge-rose {
+        background-color: rgba(244, 63, 94, 0.15);
+        color: #fb7185;
+    }
+
+    .status-badge-slate {
+        background-color: #f1f5f9;
+        color: #475569;
+    }
+
+    .dark .status-badge-slate {
+        background-color: rgba(148, 163, 184, 0.12);
+        color: #94a3b8;
     }
 </style>
 @endpush
@@ -891,7 +1399,7 @@
     // Global Dashboard data parsed from Laravel
     const analytics = @json($analytics);
     let activeTab = 'simrs';
-    
+
     // Chart instances
     let clinicChartObj = null;
     let statusChartObj = null;
@@ -911,7 +1419,7 @@
 
     function switchTab(tabName) {
         activeTab = tabName;
-        
+
         const tabSimrsBtn = document.getElementById('btn-tab-simrs');
         const tabBpjsBtn = document.getElementById('btn-tab-bpjs');
         const tabSimrsContent = document.getElementById('tab-simrs-content');
@@ -923,7 +1431,7 @@
             // UI Button states
             tabSimrsBtn.className = "px-5 py-2.5 rounded-xl text-sm font-bold transition-all bg-white dark:bg-slate-900 shadow-sm text-blue-600 dark:text-blue-400";
             tabBpjsBtn.className = "px-5 py-2.5 rounded-xl text-sm font-bold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white";
-            
+
             // Content displays
             tabSimrsContent.classList.remove('hidden');
             tabBpjsContent.classList.add('hidden');
@@ -933,7 +1441,7 @@
             // UI Button states
             tabBpjsBtn.className = "px-5 py-2.5 rounded-xl text-sm font-bold transition-all bg-white dark:bg-slate-900 shadow-sm text-teal-600 dark:text-teal-400";
             tabSimrsBtn.className = "px-5 py-2.5 rounded-xl text-sm font-bold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white";
-            
+
             // Content displays
             tabBpjsContent.classList.remove('hidden');
             tabSimrsContent.classList.add('hidden');
@@ -945,9 +1453,10 @@
     function initCharts() {
         // --- 1. Bar Chart (Clinic Performance) ---
         const ctxClinic = document.getElementById('clinicChart').getContext('2d');
-        const clinicLabels = Object.keys(analytics.clinic_stats).slice(0, 10); // show top 10
-        const waitTimes = clinicLabels.map(c => analytics.clinic_stats[c].waktu_tunggu_poli.median);
-        const layanTimes = clinicLabels.map(c => analytics.clinic_stats[c].waktu_layan_poli.median);
+        // Gunakan clinic_stats dari analytics (sekarang berisi array of objects)
+        const clinicStats = analytics.clinic_stats || [];
+        const clinicLabels = clinicStats.map(c => c.name).slice(0, 10);
+        const avgTotalTimes = clinicStats.map(c => c.avg_total_time || 0).slice(0, 10);
 
         clinicChartObj = new Chart(ctxClinic, {
             type: 'bar',
@@ -955,15 +1464,9 @@
                 labels: clinicLabels,
                 datasets: [
                     {
-                        label: 'Median Waktu Tunggu (3->4)',
-                        data: waitTimes,
+                        label: 'Rata-rata Total Durasi',
+                        data: avgTotalTimes,
                         backgroundColor: 'rgba(59, 130, 246, 0.85)', // Blue
-                        borderRadius: 8,
-                    },
-                    {
-                        label: 'Median Waktu Layan (4->5)',
-                        data: layanTimes,
-                        backgroundColor: 'rgba(16, 185, 129, 0.85)', // Emerald
                         borderRadius: 8,
                     }
                 ]
@@ -981,27 +1484,44 @@
                 },
                 scales: {
                     x: { grid: { display: false } },
-                    y: { border: { dash: [4, 4] } }
+                    y: { border: { dash: [4, 4] }, title: { display: true, text: 'Menit' } }
                 }
             }
         });
 
         // --- 2. Doughnut Chart (Flow Status Counts) ---
         const ctxStatus = document.getElementById('statusChart').getContext('2d');
-        const statusKeys = ['Lengkap (3,4,5,6,7)', 'Lengkap (3,4,5,6)', 'Lengkap (3,4,5)', 'Belum Lengkap'];
-        const statusValues = statusKeys.map(k => analytics.status_counts[k] || 0);
+        // Hitung status counts dari patients
+        const patients = analytics.patients || [];
+        const statusCounts = {
+            completed: 0, pharmacy: 0, doctor: 0, nurse: 0, checkin: 0, waiting: 0
+        };
+        patients.forEach(p => {
+            if (statusCounts[p.status] !== undefined) {
+                statusCounts[p.status]++;
+            } else {
+                statusCounts.waiting++;
+            }
+        });
+        const statusLabels = ['Lengkap', 'Farmasi', 'Dokter', 'Perawat', 'Check-in', 'Menunggu'];
+        const statusValues = [
+            statusCounts.completed, statusCounts.pharmacy, statusCounts.doctor,
+            statusCounts.nurse, statusCounts.checkin, statusCounts.waiting
+        ];
 
         statusChartObj = new Chart(ctxStatus, {
             type: 'doughnut',
             data: {
-                labels: statusKeys.map(k => k.replace('Lengkap ', 'Task ')),
+                labels: statusLabels,
                 datasets: [{
                     data: statusValues,
                     backgroundColor: [
-                        '#10b981', // emerald
-                        '#3b82f6', // blue
-                        '#818cf8', // indigo
-                        '#f59e0b', // amber
+                        '#10b981', // emerald (completed)
+                        '#3b82f6', // blue (pharmacy)
+                        '#818cf8', // indigo (doctor)
+                        '#6366f1', // violet (nurse)
+                        '#f59e0b', // amber (checkin)
+                        '#64748b'  // slate (waiting)
                     ],
                     borderWidth: 0,
                     hoverOffset: 4
@@ -1032,10 +1552,10 @@
             const query = searchInput.value.toLowerCase().trim();
             const selectedClinic = selectClinic.value;
             const selectedStatus = selectStatus.value;
-            
+
             const rows = Array.from(document.querySelectorAll('.patient-row'));
             filteredRows = [];
-            
+
             rows.forEach(row => {
                 const name = row.getAttribute('data-name');
                 const rm = row.getAttribute('data-rm');
@@ -1046,7 +1566,7 @@
 
                 let matchesSearch = !query || name.includes(query) || rm.includes(query);
                 let matchesClinic = !selectedClinic || clinic === selectedClinic;
-                
+
                 let matchesStatus = true;
                 if (selectedStatus === 'anomali') {
                     matchesStatus = hasAnomali;
@@ -1076,6 +1596,160 @@
         performFilter();
     }
 
+    // Start sync all patients
+    // Start sync today patients (Synchronous with timeout protection)
+    function triggerSyncToday() {
+        const btn = document.getElementById('btn-sync-today');
+        const icon = document.getElementById('sync-today-icon');
+        if (btn) btn.disabled = true;
+        if (icon) icon.classList.add('fa-spin');
+
+        fetch('/api/monitoring/sync-today?date=' + encodeURIComponent(dateFrom), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+            }
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                window.location.reload();
+            } else {
+                alert('Gagal sinkronisasi: ' + res.message);
+                if (btn) btn.disabled = false;
+                if (icon) icon.classList.remove('fa-spin');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Gagal sinkronisasi karena network error.');
+            if (btn) btn.disabled = false;
+            if (icon) icon.classList.remove('fa-spin');
+        });
+    }
+
+    // Start background range sync via queue job
+    let pollingInterval = null;
+
+    function triggerRangeSync() {
+        const btnMissing = document.getElementById('btn-sync-missing');
+        const btnEmpty = document.getElementById('btn-sync-range-empty');
+        if (btnMissing) btnMissing.disabled = true;
+        if (btnEmpty) btnEmpty.disabled = true;
+
+        document.getElementById('sync-progress-container').classList.remove('hidden');
+        document.getElementById('sync-progress-bar').style.width = '0%';
+        document.getElementById('sync-progress-text').textContent = 'Pending...';
+        document.getElementById('sync-progress-title').textContent = 'Menjadwalkan sinkronisasi...';
+
+        fetch('/api/monitoring/sync-range', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+            },
+            body: JSON.stringify({
+                date_from: dateFrom,
+                date_to: dateTo
+            })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                document.getElementById('sync-progress-title').textContent = 'Sinkronisasi berjalan di antrean...';
+                startPollingSyncStatus();
+            } else {
+                alert('Gagal sinkronisasi: ' + res.message);
+                document.getElementById('sync-progress-container').classList.add('hidden');
+                if (btnMissing) btnMissing.disabled = false;
+                if (btnEmpty) btnEmpty.disabled = false;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Gagal sinkronisasi karena network error.');
+            document.getElementById('sync-progress-container').classList.add('hidden');
+            if (btnMissing) btnMissing.disabled = false;
+            if (btnEmpty) btnEmpty.disabled = false;
+        });
+    }
+
+    function startPollingSyncStatus() {
+        if (pollingInterval) clearInterval(pollingInterval);
+
+        pollingInterval = setInterval(() => {
+            fetch(`/api/monitoring/sync-status?date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.success && res.data) {
+                    const status = res.data;
+                    if (status.status === 'processing') {
+                        document.getElementById('sync-progress-title').textContent = `Menyinkronkan tanggal ${status.current_date || ''}...`;
+                        document.getElementById('sync-progress-bar').style.width = status.percent + '%';
+                        document.getElementById('sync-progress-text').textContent = status.percent + '%';
+                    } else if (status.status === 'completed') {
+                        document.getElementById('sync-progress-title').textContent = 'Sinkronisasi selesai!';
+                        document.getElementById('sync-progress-bar').style.width = '100%';
+                        document.getElementById('sync-progress-text').textContent = '100%';
+                        clearInterval(pollingInterval);
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else if (status.status === 'failed') {
+                        document.getElementById('sync-progress-title').textContent = 'Sinkronisasi gagal.';
+                        clearInterval(pollingInterval);
+                        alert('Gagal sinkronisasi di latar belakang: ' + status.error);
+                    }
+                }
+            })
+            .catch(err => console.error('Error polling status:', err));
+        }, 5000);
+    }
+
+    // Check active range sync on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch(`/api/monitoring/sync-status?date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}`)
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.data && res.data.status === 'processing') {
+                document.getElementById('sync-progress-container').classList.remove('hidden');
+                document.getElementById('sync-progress-bar').style.width = res.data.percent + '%';
+                document.getElementById('sync-progress-text').textContent = res.data.percent + '%';
+                document.getElementById('sync-progress-title').textContent = `Menyinkronkan tanggal ${res.data.current_date || ''}...`;
+                
+                const btnMissing = document.getElementById('btn-sync-missing');
+                const btnEmpty = document.getElementById('btn-sync-range-empty');
+                if (btnMissing) btnMissing.disabled = true;
+                if (btnEmpty) btnEmpty.disabled = true;
+
+                startPollingSyncStatus();
+            }
+        });
+    });
+
+    // Update patient row
+    function updatePatientRow(patient) {
+        const rows = Array.from(document.querySelectorAll('.patient-row'));
+        const row = rows.find(r => r.getAttribute('data-kodebooking') === patient.kode_booking);
+        if (!row) return;
+
+        const statusBadge = row.querySelector('.sync-status');
+        if (statusBadge) {
+            statusBadge.textContent = 'BPJS';
+            statusBadge.className = 'sync-status badge badge-green';
+        }
+
+        if (patient.timestamps_sent) {
+            row.setAttribute('data-timestamps-sent', JSON.stringify(patient.timestamps_sent));
+        }
+        if (patient.durations) {
+            row.setAttribute('data-durations', JSON.stringify(patient.durations));
+        }
+        row.setAttribute('data-has-anomali', patient.has_anomalies ? 'true' : 'false');
+        row.setAttribute('data-anomalies', patient.anomalies.join(','));
+    }
+
     function paginate() {
         const totalItems = filteredRows.length;
         const totalPages = Math.ceil(totalItems / pageSize) || 1;
@@ -1098,7 +1772,7 @@
         // Show/hide empty state
         const emptyAlert = document.getElementById('no-patients-found');
         const paginationBar = document.getElementById('pagination-controls-bar');
-        
+
         if (totalItems === 0) {
             emptyAlert.classList.remove('hidden');
             paginationBar.classList.add('hidden');
@@ -1136,15 +1810,19 @@
             }
             pagesContainer.appendChild(btn);
         }
+
+        if (typeof startBackgroundSync === 'function') {
+            startBackgroundSync();
+        }
     }
 
     function changePage(page) {
         const totalItems = filteredRows.length;
         const totalPages = Math.ceil(totalItems / pageSize) || 1;
-        
+
         if (page < 1) page = 1;
         if (page > totalPages) page = totalPages;
-        
+
         currentPage = page;
         paginate();
 
@@ -1164,11 +1842,75 @@
     function scrollToPatientTableWithAnomalies() {
         document.getElementById('filter-status').value = 'anomali';
         document.getElementById('filter-status').dispatchEvent(new Event('change'));
-        
+
         document.getElementById('patient-registry-card').scrollIntoView({
             behavior: 'smooth',
             block: 'start'
         });
+    }
+
+    // --- Background Sync BPJS Patients ---
+    document.addEventListener('DOMContentLoaded', function () {
+        const needsSync = analytics.needs_sync || [];
+        if (needsSync.length > 0) {
+            console.log(`Menyinkronkan ${needsSync.length} pasien dari BPJS...`);
+            syncPatientsInBackground(needsSync);
+        }
+    });
+
+    async function syncPatientsInBackground(patients) {
+        const delayMs = 500; // Jeda 0.5 detik untuk hindari rate limit
+        for (let i = 0; i < patients.length; i++) {
+            const patient = patients[i];
+            try {
+                const response = await fetch('/api/monitoring/sync-patient', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+                    },
+                    body: JSON.stringify(patient)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    console.log(`Berhasil sync: ${patient.kodebooking}`);
+                    updatePatientRow(result.patient);
+                } else {
+                    console.error(`Gagal sync: ${patient.kodebooking}`, result.message);
+                }
+            } catch (e) {
+                console.error(`Error sync: ${patient.kodebooking}`, e);
+            }
+            // Jeda sebelum request berikutnya
+            if (i < patients.length - 1) {
+                await new Promise(r => setTimeout(r, delayMs));
+            }
+        }
+        console.log('Selesai menyinkronkan semua pasien!');
+    }
+
+    function updatePatientRow(patient) {
+        // Cari row dengan data-kodebooking yang sesuai
+        const rows = Array.from(document.querySelectorAll('.patient-row'));
+        const row = rows.find(r => r.getAttribute('data-kodebooking') === patient.kode_booking);
+        if (!row) return;
+
+        // Update sync status
+        const statusBadge = row.querySelector('.sync-status');
+        if (statusBadge) {
+            statusBadge.textContent = 'BPJS';
+            statusBadge.className = 'sync-status badge badge-green';
+        }
+
+        // Update data di row jika diperlukan
+        if (patient.timestamps_sent) {
+            row.setAttribute('data-timestamps-sent', JSON.stringify(patient.timestamps_sent));
+        }
+        if (patient.durations) {
+            row.setAttribute('data-durations', JSON.stringify(patient.durations));
+        }
+        row.setAttribute('data-has-anomali', patient.has_anomalies ? 'true' : 'false');
+        row.setAttribute('data-anomalies', patient.anomalies.join(','));
     }
 
     // Helper to safely parse different date formats in JS
@@ -1250,7 +1992,7 @@
                 let badgeClass = 'text-slate-600 dark:text-slate-300 font-bold';
                 let boxClass = 'bg-slate-50/50 dark:bg-slate-900 border border-slate-200/40 dark:border-slate-800/40';
                 const valNum = Number(val);
-                
+
                 if (valNum < 0) {
                     boxClass = 'bg-rose-500/5 border border-rose-500/10 dark:border-rose-500/20';
                     badgeClass = 'text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 rounded-lg';
@@ -1264,7 +2006,7 @@
                         badgeClass = 'text-blue-600 dark:text-blue-400 font-extrabold';
                     }
                 }
-                
+
                 durationItemsHTML += `
                     <div class="flex justify-between items-center p-3.5 rounded-2xl ${boxClass}">
                         <span class="text-xs font-semibold text-slate-500">${durLabels[key]}</span>
@@ -1318,7 +2060,7 @@
                     <div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full flex items-center justify-center ${circleColor} z-10 shadow-sm border-2 border-white dark:border-slate-950">
                         <div class="w-1.5 h-1.5 rounded-full bg-current"></div>
                     </div>
-                    
+
                     <div class="flex-grow -mt-1">
                         <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Task ${i}: ${task.name}</span>
                         <div class="grid grid-cols-2 gap-2 mt-2">
@@ -1340,11 +2082,16 @@
         // Render Panel Body
         content.innerHTML = `
             <div class="space-y-6">
-                <!-- Identity Card (Outfit Style) -->
+                <!-- Identity Card -->
                 <div class="bg-slate-50/50 dark:bg-slate-900/40 border border-slate-200/40 dark:border-slate-800/40 p-5 rounded-2xl">
-                    <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Nama Lengkap Pasien</span>
-                    <h4 class="text-lg font-bold text-slate-900 dark:text-white mt-1 leading-snug">${patient.nm_pasien}</h4>
-                    
+                    <div class="flex items-start justify-between gap-2">
+                        <div>
+                            <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Nama Lengkap Pasien</span>
+                            <h4 class="text-lg font-bold text-slate-900 dark:text-white mt-0.5 leading-snug">${patient.nm_pasien}</h4>
+                        </div>
+                        <span class="shrink-0 px-2.5 py-1 rounded-xl text-[10px] font-extrabold uppercase ${patient.stts === 'Batal' ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'}">${patient.stts || 'Aktif'}</span>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-x-4 gap-y-3 mt-4 pt-4 border-t border-slate-200/40 dark:border-slate-800/40">
                         <div>
                             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">No. Rekam Medis</span>
@@ -1355,11 +2102,27 @@
                             <p class="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5 truncate" title="${patient.no_rawat}">${patient.no_rawat}</p>
                         </div>
                         <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">NIK / No. KTP</span>
+                            <p class="text-xs font-bold ${patient.no_ktp ? 'text-slate-700 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600'} mt-0.5">${patient.no_ktp || '—'}</p>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">No. Kartu BPJS</span>
+                            <p class="text-xs font-bold ${patient.no_kartu_bpjs ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'} mt-0.5">${patient.no_kartu_bpjs || '—'}</p>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tanggal Lahir</span>
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5">${patient.tgl_lahir || '—'}</p>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tgl Daftar / Jam</span>
+                            <p class="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5">${patient.tgl_registrasi || '—'} ${patient.jam_reg ? '· '+patient.jam_reg : ''}</p>
+                        </div>
+                        <div>
                             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Poliklinik</span>
                             <p class="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5">${patient.nm_poli}</p>
                         </div>
                         <div>
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dokter Spesialis</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dokter</span>
                             <p class="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5 truncate" title="${patient.nm_dokter}">${patient.nm_dokter}</p>
                         </div>
                     </div>
@@ -1367,15 +2130,26 @@
 
                 <!-- Durations Summary -->
                 <div class="space-y-2">
-                    <h4 class="text-xs uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">Kalkulasi Durasi Internal</h4>
+                    <h4 class="text-xs uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">Kalkulasi Durasi Internal (DB SIMRS)</h4>
                     <div class="space-y-2.5">
                         ${durationItemsHTML || '<div class="text-xs text-slate-400 p-4 text-center bg-slate-50 dark:bg-slate-900 rounded-2xl">Tidak ada data pelayanan yang terhitung.</div>'}
                     </div>
                 </div>
 
+                ${patient.anomaly_hints && patient.anomaly_hints.length > 0 ? `
+                <!-- Anomaly Analysis Hints -->
+                <div class="bg-amber-50/70 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 rounded-2xl p-4">
+                    <h5 class="text-xs font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <i class="fas fa-lightbulb"></i> Analisis Kemungkinan Penyebab Anomali
+                    </h5>
+                    <ul class="space-y-1.5">
+                        ${patient.anomaly_hints.map(h => `<li class="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2"><i class="fas fa-angle-right mt-0.5 shrink-0"></i><span>${h}</span></li>`).join('')}
+                    </ul>
+                </div>` : ''}
+
                 <!-- Timeline Chronology -->
                 <div class="space-y-4">
-                    <h4 class="text-xs uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">Perbandingan Log Kronologi (Task 3-7)</h4>
+                    <h4 class="text-xs uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">Perbandingan Timestamp: SIMRS vs BPJS (Task 3–7)</h4>
                     <div class="relative pr-2">
                         ${timelineHTML}
                     </div>
@@ -1409,11 +2183,98 @@
         }, 400);
     }
 
+    // --- Clinic Detail Modal ---
+    function showClinicDetail(nmPoli, dateFrom, dateTo) {
+        const modal = document.getElementById('clinic-detail-modal');
+        const modalContent = document.getElementById('clinic-detail-content');
+        const modalTitle = document.getElementById('clinic-detail-title');
+
+        if (!modal) return;
+
+        modalTitle.textContent = nmPoli;
+        modalContent.innerHTML = `<div class="flex items-center justify-center py-12 text-slate-400"><i class="fas fa-circle-notch animate-spin mr-2"></i> Memuat data klinik...</div>`;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        fetch(`/api/monitoring/clinic/${encodeURIComponent(nmPoli)}?date_from=${dateFrom}&date_to=${dateTo}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success) {
+                    modalContent.innerHTML = `<p class="text-rose-500 text-sm font-semibold py-6 text-center">${res.message}</p>`;
+                    return;
+                }
+                const s = res.stats;
+                const fmt = (stat, key) => stat[key] !== null
+                    ? `<span class="${stat[key] < 0 ? 'text-rose-500 font-bold' : ''}">${stat[key]}m</span>`
+                    : '<span class="text-slate-300">—</span>';
+
+                let negHTML = '';
+                if (res.negative_durations && res.negative_durations.length > 0) {
+                    negHTML = `
+                    <div class="mt-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-2xl p-4">
+                        <h5 class="text-xs font-bold uppercase text-rose-600 dark:text-rose-400 mb-3 flex items-center gap-2">
+                            <i class="fas fa-exclamation-circle"></i> Durasi Negatif (${res.negative_durations.length} kasus)
+                        </h5>
+                        <div class="space-y-2 max-h-32 overflow-y-auto text-xs">
+                            ${res.negative_durations.map(d => `
+                                <div class="flex justify-between items-center">
+                                    <span class="font-semibold text-slate-700 dark:text-slate-300">${d.nm_pasien}</span>
+                                    <div class="flex gap-2 items-center">
+                                        <span class="text-slate-400">${d.metric.replace(/_/g,' ')}</span>
+                                        <span class="text-rose-600 font-bold">${d.value}m</span>
+                                    </div>
+                                </div>`).join('')}
+                        </div>
+                        <p class="text-[10px] text-rose-500 mt-3 font-semibold">⚠ Durasi negatif biasanya disebabkan data entry tidak urut, timestamp SIMRS terbalik, atau sinkronisasi jam server yang tidak konsisten.</p>
+                    </div>`;
+                }
+
+                modalContent.innerHTML = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        ${[
+                            ['Tunggu Poli (T3→T4)', s.waktu_tunggu_poli, 'blue'],
+                            ['Layan Poli (T4→T5)', s.waktu_layan_poli, 'emerald'],
+                            ['Tunggu Farmasi (T5→T6)', s.waktu_tunggu_farmasi, 'indigo'],
+                            ['Layan Farmasi (T6→T7)', s.waktu_layan_farmasi, 'purple'],
+                            ['Total Waktu RS (T3→T7)', s.total_waktu_rs, 'slate'],
+                        ].map(([label, stat, color]) => stat.count > 0 ? `
+                        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4">
+                            <p class="text-xs font-bold text-slate-400 uppercase mb-2">${label}</p>
+                            <div class="grid grid-cols-3 gap-1 text-center text-xs font-semibold mt-2">
+                                <div><span class="block text-[10px] text-slate-400">Min</span>${fmt(stat,'min')}</div>
+                                <div><span class="block text-[10px] text-slate-400 font-bold">Median</span><span class="${stat.median < 0 ? 'text-rose-500 font-bold text-base' : 'text-${color}-600 font-bold text-base'}">${stat.median !== null ? stat.median+'m' : '—'}</span></div>
+                                <div><span class="block text-[10px] text-slate-400">Max</span>${fmt(stat,'max')}</div>
+                            </div>
+                            <div class="flex justify-between text-[10px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                <span>Avg: ${stat.avg !== null ? stat.avg+'m' : '—'}</span>
+                                <span>P90: ${stat.p90 !== null ? stat.p90+'m' : '—'}</span>
+                                <span>n=${stat.count}</span>
+                            </div>
+                        </div>` : `
+                        <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 opacity-40">
+                            <p class="text-xs font-bold text-slate-400 uppercase mb-2">${label}</p>
+                            <p class="text-center text-slate-300 font-bold text-lg">—</p>
+                        </div>`).join('')}
+                    </div>
+                    ${negHTML}
+                </div>`;
+            })
+            .catch(() => {
+                modalContent.innerHTML = `<p class="text-rose-500 text-sm text-center py-6">Gagal memuat data. Coba lagi.</p>`;
+            });
+    }
+
+    function closeClinicModal() {
+        const modal = document.getElementById('clinic-detail-modal');
+        if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    }
+
     // --- On-Demand BPJS Cross Verification API Call ---
     function crossVerifyBpjs(noRawat) {
         const btn = document.getElementById('btn-verify-bpjs');
         const oldHTML = btn.innerHTML;
-        
+
         btn.disabled = true;
         btn.innerHTML = `<i class="fas fa-circle-notch animate-spin mr-1"></i> Menghubungi BPJS...`;
 
@@ -1422,7 +2283,7 @@
             .then(res => {
                 btn.disabled = false;
                 btn.innerHTML = oldHTML;
-                
+
                 if (res.success && res.data) {
                     renderBpjsVerifiedTasks(res.data);
                 } else {
@@ -1439,7 +2300,7 @@
     function renderBpjsVerifiedTasks(bpjsTasks) {
         // Append verification results to detail panel dynamically
         const content = document.getElementById('panel-content');
-        
+
         let rows = '';
         bpjsTasks.forEach(task => {
             const parsedWkt = parseJsDate(task.wakturs);
@@ -1548,7 +2409,7 @@
 
         // Populate card statistics
         const list = bpjsData.list || [];
-        
+
         let totalQueues = 0;
         let totalPoliWait = 0;
         let totalPoliLayan = 0;
@@ -1633,11 +2494,14 @@
 
         bpjsFilteredList = [...bpjsRawList];
         bpjsCurrentPage = 1;
-        
+
         // Reset search input
         document.getElementById('bpjs-search-input').value = '';
 
         paginateBpjsTable();
+
+        // Render SIMRS vs BPJS comparison
+        renderCompareTable(bpjsData);
     }
 
     function renderBpjsCharts(list) {
@@ -1664,7 +2528,7 @@
 
         // Sort for charts: Top 7 by queue volume
         const sortedForCharts = aggregatedPoli.sort((a, b) => b.totalQueues - a.totalQueues).slice(0, 7);
-        
+
         const labels = sortedForCharts.map(item => item.name);
         const queueData = sortedForCharts.map(item => item.totalQueues);
         const waitData = sortedForCharts.map(item => (item.totalWaitPoli / item.count / 60).toFixed(1));
@@ -1867,10 +2731,79 @@
         paginateBpjsTable();
     }
 
+    // SIMRS global stats (from PHP SSR)
+    const simrsGlobalStats = @json($analytics['global_stats']);
+
+    function renderCompareTable(bpjsData) {
+        const compareSection = document.getElementById('bpjs-compare-section');
+        const tbody = document.getElementById('compare-table-body');
+        if (!compareSection || !tbody) return;
+
+        // Extract BPJS aggregate averages from bpjsData.list
+        const list = bpjsData.list || [];
+        let bpjsWaitPoli = 0, bpjsLayanPoli = 0, bpjsWaitFarmasi = 0, bpjsLayanFarmasi = 0;
+        let countPoli = 0, countFarmasi = 0;
+
+        list.forEach(row => {
+            const wp = parseFloat(row.waktutunggu || row.waktu_tunggu || 0);
+            const lp = parseFloat(row.waktulayanan || row.waktu_layan || 0);
+            const wf = parseFloat(row.waktutunggufarmasi || row.waktu_tunggu_farmasi || 0);
+            const lf = parseFloat(row.waktulayanfarmasi || row.waktu_layan_farmasi || 0);
+            if (lp > 0) { bpjsWaitPoli += wp; bpjsLayanPoli += lp; countPoli++; }
+            if (lf > 0) { bpjsWaitFarmasi += wf; bpjsLayanFarmasi += lf; countFarmasi++; }
+        });
+
+        const avgWaitPoli     = countPoli > 0 ? (bpjsWaitPoli / countPoli).toFixed(1) : null;
+        const avgLayanPoli    = countPoli > 0 ? (bpjsLayanPoli / countPoli).toFixed(1) : null;
+        const avgWaitFarmasi  = countFarmasi > 0 ? (bpjsWaitFarmasi / countFarmasi).toFixed(1) : null;
+        const avgLayanFarmasi = countFarmasi > 0 ? (bpjsLayanFarmasi / countFarmasi).toFixed(1) : null;
+
+        const rows = [
+            { label: 'Tunggu Poli (T3→T4)',   simrs: simrsGlobalStats.waktu_tunggu_poli,    bpjs: avgWaitPoli },
+            { label: 'Layan Poli (T4→T5)',    simrs: simrsGlobalStats.waktu_layan_poli,     bpjs: avgLayanPoli },
+            { label: 'Tunggu Farmasi (T5→T6)',simrs: simrsGlobalStats.waktu_tunggu_farmasi, bpjs: avgWaitFarmasi },
+            { label: 'Layan Farmasi (T6→T7)', simrs: simrsGlobalStats.waktu_layan_farmasi,  bpjs: avgLayanFarmasi },
+        ];
+
+        tbody.innerHTML = rows.map(r => {
+            const simrsVal = r.simrs?.median ?? null;
+            const bpjsVal  = r.bpjs !== null ? parseFloat(r.bpjs) : null;
+            const simrsStr = simrsVal !== null ? `<span class="${simrsVal < 0 ? 'text-rose-500 font-bold' : 'text-blue-600 dark:text-blue-400'}">${simrsVal}m</span>` : '<span class="text-slate-300">—</span>';
+            const bpjsStr  = bpjsVal !== null ? `<span class="text-teal-600 dark:text-teal-400">${bpjsVal}m</span>` : '<span class="text-slate-300">—</span>';
+
+            let diffStr = '—', diffClass = 'text-slate-400', note = 'Data tidak cukup';
+            if (simrsVal !== null && bpjsVal !== null) {
+                const diff = (bpjsVal - simrsVal).toFixed(1);
+                const absDiff = Math.abs(diff);
+                if (absDiff <= 5) {
+                    diffClass = 'text-emerald-600 dark:text-emerald-400 font-bold';
+                    note = 'Konsisten ✓';
+                } else if (absDiff <= 15) {
+                    diffClass = 'text-amber-500 font-bold';
+                    note = 'Perlu dipantau ⚠';
+                } else {
+                    diffClass = 'text-rose-500 font-bold';
+                    note = 'Investigasi ❌';
+                }
+                diffStr = `<span class="${diffClass}">${diff > 0 ? '+' : ''}${diff}m</span>`;
+            }
+
+            return `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                <td class="px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-300">${r.label}</td>
+                <td class="px-4 py-3 text-center text-xs">${simrsStr} <span class="text-[10px] text-slate-400 ml-1">n=${r.simrs?.count ?? 0}</span></td>
+                <td class="px-4 py-3 text-center text-xs">${bpjsStr}</td>
+                <td class="px-4 py-3 text-center text-xs">${diffStr}</td>
+                <td class="px-4 py-3 text-center text-xs font-semibold ${diffClass}">${note}</td>
+            </tr>`;
+        }).join('');
+
+        compareSection.classList.remove('hidden');
+    }
+
     function renderBpjsReportError(message) {
         const container = document.getElementById('bpjs-report-container');
         const empty = document.getElementById('bpjs-report-empty');
-        
+
         container.classList.add('hidden');
         empty.classList.remove('hidden');
 
@@ -1929,10 +2862,10 @@
             const name = nameElement ? nameElement.textContent.trim().replace(/"/g, '""') : '';
             const rmElement = row.querySelector('td:nth-child(1) span.text-slate-400');
             const rm = rmElement ? rmElement.textContent.replace('RM: ', '').trim().replace(/"/g, '""') : '';
-            
+
             const clinic = (row.querySelector('td:nth-child(2) span:nth-child(1)')?.textContent || '').trim().replace(/"/g, '""');
             const doctor = (row.querySelector('td:nth-child(2) span:nth-child(2)')?.textContent || '').trim().replace(/"/g, '""');
-            
+
             const wtp = (row.querySelector('td:nth-child(3)')?.textContent || '').trim().replace('m', '');
             const wlp = (row.querySelector('td:nth-child(4)')?.textContent || '').trim().replace('m', '');
             const wtf = (row.querySelector('td:nth-child(5)')?.textContent || '').trim().replace('m', '');
@@ -1946,7 +2879,7 @@
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
-        
+
         const dateFrom = document.getElementById('date_from')?.value || 'data';
         const dateTo = document.getElementById('date_to')?.value || 'data';
         link.setAttribute("download", `rekap_monitoring_antrean_${dateFrom}_to_${dateTo}.csv`);
@@ -1956,10 +2889,50 @@
         document.body.removeChild(link);
     }
 
-    // Phase 2: Auto Refresh Logic
+    // Phase 2: Auto Refresh Logic (AJAX-based, no page reload)
     const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
     const autoRefreshIcon = document.getElementById('auto-refresh-icon');
     let autoRefreshTimer = null;
+
+    function doAjaxRefresh() {
+        const dateFrom = document.querySelector('input[name="date_from"]')?.value
+            || '{{ $dateFrom }}';
+        const dateTo = document.querySelector('input[name="date_to"]')?.value
+            || '{{ $dateTo }}';
+
+        const refreshBtn = document.querySelector('[title="Refresh Page"]');
+        if (refreshBtn) refreshBtn.innerHTML = '<i class="fas fa-circle-notch animate-spin"></i>';
+
+        fetch(`/api/monitoring/analytics?date_from=${dateFrom}&date_to=${dateTo}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success || !res.data) return;
+                const data = res.data;
+
+                // Update patient count card
+                const totalEl = document.querySelector('#kpi-total-patients');
+                const batalEl = document.querySelector('#kpi-batal-patients');
+                if (totalEl) totalEl.textContent = data.summary.total_patients;
+                if (batalEl) batalEl.textContent = data.summary.batal_patients;
+
+                // Update patient table rows
+                const allRows = document.querySelectorAll('.patient-row');
+                if (allRows.length !== data.patients.length) {
+                    // Row count changed — reload to get fresh SSR
+                    window.location.reload();
+                    return;
+                }
+
+                // Re-run filter to keep display consistent
+                if (typeof performFilter === 'function') performFilter();
+
+                if (refreshBtn) refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                console.log('[Auto-Refresh] Data diperbarui:', new Date().toLocaleTimeString());
+            })
+            .catch(() => {
+                if (refreshBtn) refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            });
+    }
 
     if (autoRefreshToggle) {
         const isAutoRefreshActive = localStorage.getItem('auto_refresh_monitoring') === 'true';
@@ -1967,24 +2940,20 @@
 
         if (isAutoRefreshActive) {
             autoRefreshIcon?.classList.add('fa-spin');
-            autoRefreshTimer = setTimeout(() => {
-                window.location.reload();
-            }, 30000);
+            autoRefreshTimer = setInterval(doAjaxRefresh, 30000);
         }
 
         autoRefreshToggle.addEventListener('change', function(e) {
             if (e.target.checked) {
                 localStorage.setItem('auto_refresh_monitoring', 'true');
                 autoRefreshIcon?.classList.add('fa-spin');
-                autoRefreshTimer = setTimeout(() => {
-                    window.location.reload();
-                }, 30000);
+                autoRefreshTimer = setInterval(doAjaxRefresh, 30000);
             } else {
                 localStorage.setItem('auto_refresh_monitoring', 'false');
                 autoRefreshIcon?.classList.remove('fa-spin');
                 if (autoRefreshTimer) {
-                    clearTimeout(autoRefreshTimer);
-                    autoRefreshTimer = null;
+                    clearInterval(autoRefreshTimer);
+ file                    autoRefreshTimer = null;
                 }
             }
         });
