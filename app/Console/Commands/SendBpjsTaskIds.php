@@ -2,17 +2,16 @@
 
 namespace App\Console\Commands;
 
-use App\Models\ReferensiMobilejknBpjs;
-use App\Models\RegPeriksa;
-use App\Models\Poliklinik;
-use App\Models\Dokter;
-use App\Models\MapingPoliBpjs;
-use App\Models\MapingDokterDpjpvclaim;
 use App\Models\Jadwal;
+use App\Models\MapingDokterDpjpvclaim;
+use App\Models\MapingPoliBpjs;
+use App\Models\ReferensiMobilejknBpjs;
+use App\Models\ReferensiMobilejknBpjsBatal;
+use App\Models\RegPeriksa;
 use App\Services\MobileJknService;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 
 class SendBpjsTaskIds extends Command
 {
@@ -84,13 +83,22 @@ class SendBpjsTaskIds extends Command
             $query->has('referensiMobilejknBpjs');
         }
 
-        // If not running for all, only process those who haven't completed all 5 tasks (3, 4, 5, 6, 7)
+        // If not running for all, process those who haven't completed all tasks or need cancellation
         if (!$this->option('all')) {
             $query->where(function ($q) {
                 $q->whereDoesntHave('referensiMobilejknBpjsTaskid')
                   ->orWhereHas('referensiMobilejknBpjsTaskid', function ($subQ) {
                       $subQ->whereIn('taskid', ['3', '4', '5', '6', '7']);
-                  }, '<', 5);
+                  }, '<', 5)
+                  ->orWhere(function ($q2) {
+                      $q2->whereHas('referensiMobilejknBpjs', function ($subQ) {
+                          $subQ->where('status', 'Belum')
+                               ->where(function ($vq) {
+                                   $vq->whereNull('validasi')
+                                      ->orWhere('validasi', '0000-00-00 00:00:00');
+                               });
+                      });
+                  });
             });
         }
 
@@ -114,6 +122,7 @@ class SendBpjsTaskIds extends Command
             'antrean_failed' => 0,
             'task_success' => 0,
             'task_failed' => 0,
+            'task_cancelled' => 0,
         ];
 
         foreach ($patients as $patient) {
@@ -122,6 +131,9 @@ class SendBpjsTaskIds extends Command
             $progressBar->advance();
         }
 
+        // Process any un-sent cancelled Mobile JKN bookings
+        $this->processCancelledBookings($dateFrom, $dateTo, $stats);
+
         $progressBar->finish();
         $this->newLine(2);
 
@@ -129,6 +141,133 @@ class SendBpjsTaskIds extends Command
         $this->displayStatistics($stats);
 
         $this->info('BPJS Task ID processing completed!');
+    }
+
+    /**
+     * Process any un-sent cancelled bookings from referensi_mobilejkn_bpjs_batal and referensi_mobilejkn_bpjs
+     */
+    protected function processCancelledBookings($dateFrom, $dateTo, &$stats)
+    {
+        $service = app(MobileJknService::class);
+
+        // 1. Un-sent entries from referensi_mobilejkn_bpjs_batal
+        $batalList = ReferensiMobilejknBpjsBatal::where('statuskirim', 'Belum')
+            ->whereBetween('tanggalbatal', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59'])
+            ->get();
+
+        foreach ($batalList as $bRec) {
+            $kodebooking = $bRec->nobooking;
+            if ($this->option('dry-run')) {
+                $this->line("DRY RUN: Task 99 (BATAL) for unsent cancellation: {$kodebooking}");
+                continue;
+            }
+
+            $nowStr = (string)(now()->timestamp * 1000);
+            $service->updateTaskId($kodebooking, 99, $nowStr);
+            $service->batalAntrean($kodebooking, $bRec->keterangan ?: 'Dibatalkan Oleh Admin');
+
+            $bRec->update(['statuskirim' => 'Sudah']);
+            ReferensiMobilejknBpjs::where('nobooking', $kodebooking)->update([
+                'status' => 'Batal',
+                'statuskirim' => 'Sudah'
+            ]);
+            $stats['task_cancelled']++;
+        }
+
+        // 2. Un-sent entries from referensi_mobilejkn_bpjs with status = Batal
+        $refBatalList = ReferensiMobilejknBpjs::where('status', 'Batal')
+            ->where('statuskirim', 'Belum')
+            ->whereBetween('tanggalperiksa', [$dateFrom, $dateTo])
+            ->get();
+
+        foreach ($refBatalList as $rRef) {
+            $kodebooking = $rRef->nobooking;
+            if ($this->option('dry-run')) {
+                $this->line("DRY RUN: Task 99 (BATAL) for unsent referensi Batal: {$kodebooking}");
+                continue;
+            }
+
+            $nowStr = (string)(now()->timestamp * 1000);
+            $service->updateTaskId($kodebooking, 99, $nowStr);
+            $service->batalAntrean($kodebooking, 'Dibatalkan Oleh Admin');
+
+            $rRef->update(['statuskirim' => 'Sudah']);
+            $stats['task_cancelled']++;
+        }
+    }
+
+    /**
+     * Check if a patient should be auto-cancelled (Task 99)
+     */
+    protected function shouldAutoCancel($patient): bool
+    {
+        $ref = $patient->referensiMobilejknBpjs;
+        if (!$ref) return false;
+
+        $statusBelum = strtolower(trim($ref->status ?? '')) === 'belum';
+        $validasiKosong = (
+            $ref->validasi === null ||
+            (string)$ref->validasi === '' ||
+            (string)$ref->validasi === '0000-00-00 00:00:00'
+        );
+
+        return $statusBelum && $validasiKosong;
+    }
+
+    /**
+     * Send Task 99 (Cancel) and update local DB tables
+     */
+    protected function sendCancelTask($patient, $kodebooking, &$stats)
+    {
+        if ($this->option('dry-run')) {
+            $this->line("DRY RUN: Task 99 (BATAL) for: {$kodebooking} — Pasien belum checkin");
+            return;
+        }
+
+        $service = app(MobileJknService::class);
+        $nowStr = (string)(now()->timestamp * 1000);
+
+        // 1. Send Task 99 to BPJS API
+        $result = $service->updateTaskId($kodebooking, 99, $nowStr);
+
+        // 2. Send Batal Antrean to BPJS API
+        $batalResult = $service->batalAntrean($kodebooking, 'Dibatalkan Oleh Admin');
+
+        $success = $result['success'] || (
+            isset($result['data']['metadata']['message']) &&
+            strpos($result['data']['metadata']['message'], 'Ok') !== false
+        );
+
+        if ($success) {
+            $stats['task_cancelled']++;
+            $this->line("Task 99 (BATAL) sent successfully for: {$kodebooking}");
+
+            $ref = $patient->referensiMobilejknBpjs;
+            if ($ref) {
+                $ref->update([
+                    'status' => 'Batal',
+                    'validasi' => now(),
+                    'statuskirim' => 'Sudah',
+                ]);
+            }
+
+            // Insert into referensi_mobilejkn_bpjs_batal
+            ReferensiMobilejknBpjsBatal::updateOrCreate(
+                ['nobooking' => $kodebooking],
+                [
+                    'no_rkm_medis' => $patient->no_rkm_medis,
+                    'no_rawat_batal' => $patient->no_rawat,
+                    'nomorreferensi' => $ref->nomorreferensi ?? '',
+                    'tanggalbatal' => now(),
+                    'keterangan' => 'Dibatalkan Oleh Admin',
+                    'statuskirim' => 'Sudah',
+                ]
+            );
+        } else {
+            $stats['task_failed']++;
+            $errorMsg = $result['error'] ?? ($result['data']['metadata']['message'] ?? 'Unknown error');
+            $this->line("Failed to send Task 99 for: {$kodebooking} - {$errorMsg}");
+        }
     }
 
     /**
@@ -141,6 +280,10 @@ class SendBpjsTaskIds extends Command
         $referensi = $patient->referensiMobilejknBpjs;
         if (!$referensi) {
             $this->line("No referensi data for patient: {$patient->no_rawat}");
+            if (strtolower(trim($patient->stts ?? '')) === 'batal') {
+                $this->line("Skipping Onsite patient {$patient->no_rawat} because status in SIMRS is Batal");
+                return;
+            }
         }
 
         // Use nobooking if referensi exists, otherwise use no_rawat
@@ -151,6 +294,12 @@ class SendBpjsTaskIds extends Command
 
         // Add antrean first
         $this->line("Processing patient: {$patient->no_rawat} (Booking: {$kodebooking})");
+
+        // CHECK BEFORE SENDING TASK 3-7: Auto-cancel if patient hasn't checked in
+        if ($this->shouldAutoCancel($patient)) {
+            $this->sendCancelTask($patient, $kodebooking, $stats);
+            return; // SKIP Task 3-7
+        }
 
         // Get already sent task IDs if not forcing resend
         $existingTaskIds = [];
@@ -175,7 +324,7 @@ class SendBpjsTaskIds extends Command
             //     $this->line("Failed to add antrean for: {$kodebooking} - " . ($antreanResult['error'] ?? 'Unknown error'));
             // }
         } else {
-            $this->line("DRY RUN: Would add antrean for: {$kodebooking}");
+            $this->line("DRY RUN: Would add antrean/send tasks for: {$kodebooking}");
             $this->sendTaskIds($kodebooking, $stats, true, $existingTaskIds);
         }
     }
@@ -185,6 +334,15 @@ class SendBpjsTaskIds extends Command
      */
     protected function sendTaskIds($kodebooking, &$stats, $dryRun = false, $existingTaskIds = [])
     {
+        // Safety check: Never send Tasks 3-7 for cancelled booking codes
+        $isCancelled = ReferensiMobilejknBpjs::where('nobooking', $kodebooking)->where('status', 'Batal')->exists()
+            || ReferensiMobilejknBpjsBatal::where('nobooking', $kodebooking)->exists();
+
+        if ($isCancelled) {
+            $this->warn("Booking {$kodebooking} is CANCELLED (Batal). Skipping Tasks 3-7.");
+            return;
+        }
+
         $taskIds = [3, 4, 5, 6, 7]; // Task IDs to send
 
         foreach ($taskIds as $taskId) {
@@ -277,13 +435,13 @@ class SendBpjsTaskIds extends Command
             // Try to get from bridging SEP or referensi
             $jenisKunjungan = 1; // Default: Rujukan FKTP
             $nomorreferensi = '';
-            
+
             if ($patient->bridgingSep) {
                 $nomorreferensi = $patient->bridgingSep->no_rujukan ?? '';
             } elseif ($referensi) {
                 $nomorreferensi = $referensi->nomorreferensi ?? '';
             }
-            
+
             // If no rujukan available, set default
             if (empty($nomorreferensi)) {
                 $jenisKunjungan = 1; // Default to FKTP referral
@@ -324,22 +482,22 @@ class SendBpjsTaskIds extends Command
                 'no_rawat' => $patient->no_rawat,
                 'error' => $e->getMessage()
             ]);
-            
+
             // Return basic fallback data with same format as MobileJknService
             $pasien = $patient->pasien;
             $angkaAntrean = str_pad((string) intval($patient->no_reg), 3, '0', STR_PAD_LEFT);
             $nomorAntrean = $patient->kd_poli . '-' . $angkaAntrean;
-            
+
             // Safe date handling for fallback
             $tglRegistrasi = $patient->tgl_registrasi;
-            if ($tglRegistrasi instanceof \Carbon\Carbon) {
+            if ($tglRegistrasi instanceof Carbon) {
                 $tanggalperiksa = $tglRegistrasi->format('Y-m-d');
             } elseif ($tglRegistrasi) {
                 $tanggalperiksa = explode(' ', $tglRegistrasi)[0];
             } else {
                 $tanggalperiksa = date('Y-m-d');
             }
-            
+
             return [
                 'kodebooking' => $referensi ? $referensi->nobooking : $patient->no_rawat,
                 'jenispasien' => 'JKN',
@@ -382,6 +540,7 @@ class SendBpjsTaskIds extends Command
                 ['Antrean Failed', $stats['antrean_failed']],
                 ['Task ID Success', $stats['task_success']],
                 ['Task ID Failed', $stats['task_failed']],
+                ['Task 99 Cancelled', $stats['task_cancelled'] ?? 0],
             ]
         );
     }

@@ -100,11 +100,20 @@ class RegPeriksa extends Model
     }
 
     /**
-     * Get the referensiMobilejknBpjs for the RegPeriksa.
+     * Get active referensiMobilejknBpjs for the RegPeriksa (excluding Batal status).
      */
     public function referensiMobilejknBpjs()
     {
-        return $this->hasOne(ReferensiMobilejknBpjs::class, 'no_rawat', 'no_rawat');
+        return $this->hasOne(ReferensiMobilejknBpjs::class, 'no_rawat', 'no_rawat')
+            ->where('status', '!=', 'Batal');
+    }
+
+    /**
+     * Get all referensiMobilejknBpjs records for the RegPeriksa.
+     */
+    public function referensiMobilejknBpjsAll()
+    {
+        return $this->hasMany(ReferensiMobilejknBpjs::class, 'no_rawat', 'no_rawat');
     }
 
     /**

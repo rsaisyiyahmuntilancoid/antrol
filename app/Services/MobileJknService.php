@@ -2,14 +2,16 @@
 
 namespace App\Services;
 
+use App\Models\BpjsDashboardWaktutunggu;
+use App\Models\BpjsPatientVisit;
+use App\Models\Jadwal;
 use App\Models\MapingDokterDpjpvclaim;
 use App\Models\MapingPoliBpjs;
-use App\Models\ReferensiMobilejknBpjs;
-use App\Models\ReferensiMobilejknBpjsBatal;
-use App\Models\RegPeriksa;
+use App\Models\Pasien;
 use App\Models\PemeriksaanRalan;
-use App\Models\Petugas;
-use App\Models\Dokter;
+use App\Models\ReferensiMobilejknBpjs;
+use App\Models\ReferensiMobilejknBpjsTaskid;
+use App\Models\RegPeriksa;
 use App\Models\ResepObat;
 use App\Services\BpjsLogService;
 use Carbon\Carbon;
@@ -17,10 +19,7 @@ use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
-use App\Models\ReferensiMobilejknBpjsTaskid;
 use Throwable;
-use App\Models\Jadwal;
-use App\Models\Pasien;
 
 class MobileJknService
 {
@@ -145,7 +144,7 @@ class MobileJknService
                     $rawTimestamp = $this->getTask7Timestamp($kodebooking);
                     break;
                 case 99:
-                    $rawTimestamp = (string) now()->timestamp * 1000; // Current time in milliseconds
+                    $rawTimestamp = (string) ((int) (now()->timestamp * 1000));
                     break;
                 default:
                     return null;
@@ -185,7 +184,7 @@ class MobileJknService
         // First try to get from referensi_mobilejkn_bpjs
         $referensi = ReferensiMobilejknBpjs::where('nobooking', $kodebooking)->first();
 
-        if ($referensi && $referensi->validasi) {
+        if ($referensi && $referensi->validasi && (int)$referensi->validasi->format('Y') > 1970) {
             return $referensi->validasi->timestamp * 1000;
         }
 
@@ -478,7 +477,7 @@ class MobileJknService
                 ]);
                 return $serviceDate->startOfDay();
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::debug('Failed to get service date from database', ['error' => $e->getMessage()]);
         }
 
@@ -499,7 +498,7 @@ class MobileJknService
                     return $serviceDate->startOfDay();
                 }
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::debug('Failed to extract service date from kodebooking', ['error' => $e->getMessage()]);
         }
 
@@ -724,6 +723,9 @@ class MobileJknService
             //     $refBatal = ReferensiMobilejknBpjsBatal::where('nobooking', $kodebooking)->first();
             //     $batal = $this->batalAntrean($kodebooking, $refBatal ? $refBatal->keterangan : 'Batal.');
             // }
+            if ($taskid == 99) {
+                $batal = $this->batalAntrean($kodebooking, 'Dibatalkan Oleh Admin');
+            }
 
             // Make HTTP request
             $response = Http::withHeaders([
@@ -790,7 +792,7 @@ class MobileJknService
                     // Format returned by BPJS is "DD-MM-YYYY HH:mm:ss WIB" for time
                     try {
                         $timeString = str_replace(' WIB', '', $bestWaktuObj['waktu']);
-                        $time = \Carbon\Carbon::createFromFormat('d-m-Y H:i:s', $timeString, 'Asia/Jakarta');
+                        $time = Carbon::createFromFormat('d-m-Y H:i:s', $timeString, 'Asia/Jakarta');
                         $previousWaktu = $time->timestamp * 1000;
                         Log::info('Found previous task time natively via BPJS getListTask', [
                             'kodebooking' => $kodebooking,
@@ -798,7 +800,7 @@ class MobileJknService
                             'bpjs_waktu_str' => $bestWaktuObj['waktu'],
                             'parsed_timestamp_ms' => $previousWaktu
                         ]);
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                          Log::error("Failed to parse BPJS returned time", ['error' => $e->getMessage()]);
                     }
                 }
@@ -808,7 +810,7 @@ class MobileJknService
                     try {
                         $timeString = str_replace([' WIB', ' WITA', ' WIT'], '', $matches[1]);
                         // Example: 2026-03-17 15:39:34
-                        $time = \Carbon\Carbon::parse($timeString, 'Asia/Jakarta');
+                        $time = Carbon::parse($timeString, 'Asia/Jakarta');
                         $msgWaktu = $time->timestamp * 1000;
                         if ($previousWaktu === null || $msgWaktu > $previousWaktu) {
                             $previousWaktu = $msgWaktu;
@@ -817,7 +819,7 @@ class MobileJknService
                                 'new_previous_waktu' => $previousWaktu
                             ]);
                         }
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         Log::debug('Failed to parse time from error message', ['error' => $e->getMessage()]);
                     }
                 }
@@ -943,7 +945,7 @@ class MobileJknService
                             'new_waktu' => $adjustedWaktu,
                             'new_time' => Carbon::createFromTimestampMs($adjustedWaktu)->setTimezone(config('app.timezone', 'Asia/Jakarta'))->toDateTimeString()
                         ]);
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         Log::error('Failed to parse date from BPJS error message', ['error' => $e->getMessage()]);
                     }
                 }
@@ -1257,24 +1259,23 @@ class MobileJknService
     /**
      * Get saved task ID record from referensi_mobilejkn_bpjs_taskid by no_rawat and taskid
      *
-     * @param string $noRawat
-     * @param int $taskid
+     * @param string $kodebooking
      * @return array|null
      */
     public function getListTask(string $kodebooking): array
     {
         try {
-            $cached = \App\Models\BpjsPatientVisit::where('kodebooking', $kodebooking)->first();
+            $cached = BpjsPatientVisit::where('kodebooking', $kodebooking)->first();
 
             $shouldUseCache = false;
             if ($cached && $cached->task_data !== null) {
                 $reg = null;
                 if (strpos($kodebooking, '/') !== false) {
-                    $reg = \App\Models\RegPeriksa::where('no_rawat', $kodebooking)->first();
+                    $reg = RegPeriksa::where('no_rawat', $kodebooking)->first();
                 } else {
-                    $ref = \App\Models\ReferensiMobilejknBpjs::where('nobooking', $kodebooking)->first();
+                    $ref = ReferensiMobilejknBpjs::where('nobooking', $kodebooking)->first();
                     if ($ref) {
-                        $reg = \App\Models\RegPeriksa::where('no_rawat', $ref->no_rawat)->first();
+                        $reg = RegPeriksa::where('no_rawat', $ref->no_rawat)->first();
                     }
                 }
 
@@ -1374,15 +1375,15 @@ class MobileJknService
                 } else {
                     $reg = null;
                     if (strpos($kodebooking, '/') !== false) {
-                        $reg = \App\Models\RegPeriksa::where('no_rawat', $kodebooking)->first();
+                        $reg = RegPeriksa::where('no_rawat', $kodebooking)->first();
                     } else {
-                        $ref = \App\Models\ReferensiMobilejknBpjs::where('nobooking', $kodebooking)->first();
+                        $ref = ReferensiMobilejknBpjs::where('nobooking', $kodebooking)->first();
                         if ($ref) {
-                            $reg = \App\Models\RegPeriksa::where('no_rawat', $ref->no_rawat)->first();
+                            $reg = RegPeriksa::where('no_rawat', $ref->no_rawat)->first();
                         }
                     }
                     if ($reg) {
-                        \App\Models\BpjsPatientVisit::create([
+                        BpjsPatientVisit::create([
                             'kodebooking' => $kodebooking,
                             'no_rawat' => $reg->no_rawat,
                             'tanggalperiksa' => $reg->tgl_registrasi,
@@ -1403,7 +1404,7 @@ class MobileJknService
                 'status_code' => $response->status()
             ];
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error getting list task from Mobile JKN', [
                 'kodebooking' => $kodebooking,
                 'error' => $e->getMessage()
@@ -1412,6 +1413,133 @@ class MobileJknService
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
+                'status_code' => 500
+            ];
+        }
+    }
+
+    /**
+     * Get listtask directly from BPJS API by kodebooking (bypassing DB cache check)
+     *
+     * @param string $kodebooking
+     * @return array
+     */
+    public function getListTaskDirect(string $kodebooking): array
+    {
+        try {
+            $timestamp = $this->getUtcTimestamp();
+            $signature = base64_encode($this->generateSignature($timestamp));
+
+            $requestData = [
+                'kodebooking' => $kodebooking
+            ];
+
+            Log::info('Mobile JKN Get List Task Direct Request', [
+                'kodebooking' => $kodebooking,
+                'timestamp' => (int) $timestamp
+            ]);
+
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'X-cons-id' => $this->consId,
+                'X-timestamp' => $timestamp,
+                'X-signature' => $signature,
+                'user_key' => $this->userKey,
+            ])->timeout(5)->connectTimeout(3)->post($this->baseUrl . '/antrean/getlisttask', $requestData);
+
+            $responseData = $response->json();
+
+            $this->bpjsLogService->logRequest(
+                $response->status(),
+                json_encode($requestData),
+                json_encode($responseData),
+                $this->baseUrl . '/antrean/getlisttask',
+                'POST'
+            );
+
+            Log::info('Mobile JKN Get List Task Direct Response', [
+                'status' => $response->status(),
+                'response' => $responseData
+            ]);
+
+            $data = [];
+            $metaCode = 200;
+            $metaMsg = 'OK';
+
+            if ($response->status() == 200 && isset($responseData['metadata']['code'])) {
+                $metaCode = (int)$responseData['metadata']['code'];
+                $metaMsg = $responseData['metadata']['message'] ?? 'OK';
+
+                if ($metaCode == 200 && isset($responseData['response'])) {
+                    if (is_string($responseData['response'])) {
+                        $key = $this->generateDecryptionKey((string) $timestamp);
+                        $decrypted = $this->stringDecrypt($key, $responseData['response']);
+                        $decompressed = $this->decompress($decrypted);
+                        $data = json_decode($decompressed, true) ?? [];
+                    } else {
+                        $data = $responseData['response'];
+                    }
+                }
+            } else {
+                $metaCode = $response->status();
+                $metaMsg = $response->reason() ?: 'API Error';
+            }
+
+            $success = in_array($metaCode, [200, 201, 204]);
+
+            // Update cache record in DB upon successful direct fetch
+            if ($success) {
+                $cached = BpjsPatientVisit::where('kodebooking', $kodebooking)->first();
+                if ($cached) {
+                    $cached->update([
+                        'task_data' => $data,
+                        'last_sync' => now()
+                    ]);
+                } else {
+                    $reg = null;
+                    if (strpos($kodebooking, '/') !== false) {
+                        $reg = RegPeriksa::where('no_rawat', $kodebooking)->first();
+                    } else {
+                        $ref = ReferensiMobilejknBpjs::where('nobooking', $kodebooking)->first();
+                        if ($ref) {
+                            $reg = RegPeriksa::where('no_rawat', $ref->no_rawat)->first();
+                        }
+                    }
+                    if ($reg) {
+                        BpjsPatientVisit::create([
+                            'kodebooking' => $kodebooking,
+                            'no_rawat' => $reg->no_rawat,
+                            'tanggalperiksa' => $reg->tgl_registrasi,
+                            'task_data' => $data,
+                            'last_sync' => now()
+                        ]);
+                    }
+                }
+            }
+
+            return [
+                'success' => $success,
+                'data' => $data,
+                'metadata' => [
+                    'code' => $metaCode,
+                    'message' => $metaMsg
+                ],
+                'status_code' => $response->status()
+            ];
+
+        } catch (Exception $e) {
+            Log::error('Error getting list task direct from Mobile JKN', [
+                'kodebooking' => $kodebooking,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'metadata' => [
+                    'code' => 500,
+                    'message' => $e->getMessage()
+                ],
                 'status_code' => 500
             ];
         }
@@ -2168,7 +2296,7 @@ class MobileJknService
     public function getDashboardPerTanggal(string $tanggal, string $waktu = 'rs'): array
     {
         try {
-            $cached = \App\Models\BpjsDashboardWaktutunggu::where('tanggal', $tanggal)
+            $cached = BpjsDashboardWaktutunggu::where('tanggal', $tanggal)
                 ->where('waktu', $waktu)
                 ->get();
 
@@ -2180,7 +2308,7 @@ class MobileJknService
                     $isCacheValid = true;
                 } else {
                     $lastUpdated = $cached->max('updated_at');
-                    if ($lastUpdated && \Carbon\Carbon::parse($lastUpdated)->gt(now()->subMinutes(10))) {
+                    if ($lastUpdated && Carbon::parse($lastUpdated)->gt(now()->subMinutes(10))) {
                         $isCacheValid = true;
                     }
                 }
@@ -2266,7 +2394,7 @@ class MobileJknService
 
                 if (isset($data['list']) && is_array($data['list'])) {
                     foreach ($data['list'] as $item) {
-                        \App\Models\BpjsDashboardWaktutunggu::updateOrCreate(
+                        BpjsDashboardWaktutunggu::updateOrCreate(
                             [
                                 'tanggal' => $tanggal,
                                 'waktu' => $waktu,
@@ -2301,7 +2429,7 @@ class MobileJknService
                 'status_code' => $response->status()
             ];
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error getting dashboard per tanggal from Mobile JKN', [
                 'tanggal' => $tanggal,
                 'error' => $e->getMessage()
@@ -2329,7 +2457,7 @@ class MobileJknService
             $startOfMonth = "{$tahun}-{$bulan}-01";
             $endOfMonth = date('Y-m-t', strtotime($startOfMonth));
 
-            $cached = \App\Models\BpjsDashboardWaktutunggu::whereBetween('tanggal', [$startOfMonth, $endOfMonth])
+            $cached = BpjsDashboardWaktutunggu::whereBetween('tanggal', [$startOfMonth, $endOfMonth])
                 ->where('waktu', $waktu)
                 ->get();
 
@@ -2341,7 +2469,7 @@ class MobileJknService
                     $isCacheValid = true;
                 } else {
                     $lastUpdated = $cached->max('updated_at');
-                    if ($lastUpdated && \Carbon\Carbon::parse($lastUpdated)->gt(now()->subHour())) {
+                    if ($lastUpdated && Carbon::parse($lastUpdated)->gt(now()->subHour())) {
                         $isCacheValid = true;
                     }
                 }
@@ -2430,7 +2558,7 @@ class MobileJknService
                     foreach ($data['list'] as $item) {
                         $itemTanggal = $item['tanggal'] ?? null;
                         if ($itemTanggal) {
-                            \App\Models\BpjsDashboardWaktutunggu::updateOrCreate(
+                            BpjsDashboardWaktutunggu::updateOrCreate(
                                 [
                                     'tanggal' => $itemTanggal,
                                     'waktu' => $waktu,
@@ -2466,7 +2594,7 @@ class MobileJknService
                 'status_code' => $response->status()
             ];
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error getting dashboard per bulan from Mobile JKN', [
                 'bulan' => $bulan,
                 'tahun' => $tahun,

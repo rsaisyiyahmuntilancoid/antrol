@@ -99,6 +99,8 @@ Route::prefix('api/monitoring')->group(function () {
     Route::get('/clinic/{nmPoli}', [App\Http\Controllers\FlowAnalyticsController::class, 'getClinicDetail']);
     Route::get('/patient/{noRawat}', [App\Http\Controllers\FlowAnalyticsController::class, 'getPatientDetail'])->where('noRawat', '.*');
     Route::get('/verify/{noRawat}', [App\Http\Controllers\FlowAnalyticsController::class, 'verifyBpjs'])->where('noRawat', '.*');
+    Route::get('/list-task-booking/{kodebooking?}', [App\Http\Controllers\FlowAnalyticsController::class, 'getListTaskByKodeBooking'])->where('kodebooking', '.*');
+    Route::post('/list-task-booking', [App\Http\Controllers\FlowAnalyticsController::class, 'getListTaskByKodeBooking']);
     Route::get('/bpjs-dashboard/tanggal', [App\Http\Controllers\FlowAnalyticsController::class, 'getBpjsDashboardTanggal']);
     Route::get('/bpjs-dashboard/bulan', [App\Http\Controllers\FlowAnalyticsController::class, 'getBpjsDashboardBulan']);
     Route::post('/sync-patient', [App\Http\Controllers\FlowAnalyticsController::class, 'syncPatient']);
