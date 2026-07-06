@@ -34,7 +34,6 @@ class SyncBpjsPatientVisits extends Command
             $dates = [Carbon::parse($dateInput)->toDateString()];
         } else {
             $dates = [
-                Carbon::yesterday()->toDateString(),
                 Carbon::today()->toDateString(),
             ];
         }

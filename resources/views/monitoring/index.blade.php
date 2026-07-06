@@ -674,12 +674,12 @@
                     <select id="filter-status"
                         class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500 text-slate-600 dark:text-slate-400">
                         <option value="">Semua Status</option>
-                        <option value="completed">Lengkap</option>
-                        <option value="pharmacy">Farmasi</option>
-                        <option value="doctor">Dokter</option>
-                        <option value="nurse">Perawat</option>
-                        <option value="checkin">Check-in</option>
-                        <option value="waiting">Menunggu</option>
+                        <option value="Lengkap (3,4,5,6,7)">Lengkap (3,4,5,6,7)</option>
+                        <option value="Lengkap (3,4,5,6) - Farmasi Belum Selesai">Lengkap (3,4,5,6) - Farmasi Belum Selesai</option>
+                        <option value="Task 3,4,5">Task 3,4,5</option>
+                        <option value="Task 3,4">Task 3,4</option>
+                        <option value="Task 3">Task 3</option>
+                        <option value="Belum Terkirim">Belum Terkirim</option>
                         <option value="Tidak Hadir / Batal">Batal</option>
                         <option value="anomali">Hanya Anomali Data</option>
                     </select>
@@ -692,19 +692,19 @@
                 </div>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full min-w-[1200px] text-left border-collapse text-sm" id="patients-table">
+            <div class="overflow-x-auto select-none">
+                <table class="w-full text-left border-collapse text-sm" id="patients-table">
                     <thead>
                         <tr
                             class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40">
-                            <th class="px-8 py-4 w-[280px]">Pasien</th>
-                            <th class="px-8 py-4 w-[260px]">Poliklinik / Dokter</th>
-                            <th class="px-8 py-4 text-center w-[120px]">Tunggu Poli</th>
-                            <th class="px-8 py-4 text-center w-[120px]">Layan Poli</th>
-                            <th class="px-8 py-4 text-center w-[120px]">Tunggu Farm.</th>
-                            <th class="px-8 py-4 text-center w-[120px]">Total RS</th>
-                            <th class="px-8 py-4 text-center w-[130px]">Status</th>
-                            <th class="px-8 py-4 text-center w-[100px]">Aksi</th>
+                            <th class="px-4 py-4">Pasien</th>
+                            <th class="px-4 py-4">Poliklinik / Dokter</th>
+                            <th class="px-4 py-4 text-center">Tunggu Poli</th>
+                            <th class="px-4 py-4 text-center">Layan Poli</th>
+                            <th class="px-4 py-4 text-center">Tunggu Farm.</th>
+                            <th class="px-4 py-4 text-center">Total RS</th>
+                            <th class="px-4 py-4 text-center">Status</th>
+                            <th class="px-4 py-4 text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -716,7 +716,7 @@
                             data-has-anomali="{{ $p['has_anomalies'] ? 'true' : 'false' }}"
                             data-anomalies="{{ implode(',', $p['anomalies']) }}"
                             data-kodebooking="{{ $p['kode_booking'] }}">
-                            <td class="px-8 py-5">
+                            <td class="px-4 py-3.5">
                                 <div class="flex flex-col whitespace-normal">
                                     <span
                                         class="font-bold text-slate-800 dark:text-slate-200 flex flex-wrap items-center gap-1.5 leading-snug">
@@ -733,7 +733,7 @@
                                         $p['no_rkm_medis'] }} &bull; Jam Reg: {{ $p['jam_reg'] }}</span>
                                 </div>
                             </td>
-                            <td class="px-8 py-5">
+                            <td class="px-4 py-3.5">
                                 <div class="flex flex-col whitespace-normal">
                                     <span class="text-slate-700 dark:text-slate-300 font-bold text-xs leading-snug">{{
                                         $p['nm_poli'] }}</span>
@@ -747,7 +747,7 @@
                             $wtf = $p['durations']['waktu_tunggu_farmasi'] ?? $p['durations']['doctor_to_pharmacy'];
                             $twr = $p['durations']['total_waktu_rs'] ?? $p['durations']['total_time'];
                             @endphp
-                            <td class="px-8 py-5 text-center text-blue-600 dark:text-blue-400 font-semibold">
+                            <td class="px-4 py-3.5 text-center text-blue-600 dark:text-blue-400 font-semibold">
                                 @if($wtp !== null)
                                 @if($wtp < 0) <span
                                     class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs"
@@ -759,7 +759,7 @@
                                     -
                                     @endif
                             </td>
-                            <td class="px-8 py-5 text-center text-emerald-600 dark:text-emerald-400 font-semibold">
+                            <td class="px-4 py-3.5 text-center text-emerald-600 dark:text-emerald-400 font-semibold">
                                 @if($wlp !== null)
                                 @if($wlp < 0) <span
                                     class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs"
@@ -771,7 +771,7 @@
                                     -
                                     @endif
                             </td>
-                            <td class="px-8 py-5 text-center text-indigo-600 dark:text-indigo-400 font-semibold">
+                            <td class="px-4 py-3.5 text-center text-indigo-600 dark:text-indigo-400 font-semibold">
                                 @if($wtf !== null)
                                 @if($wtf < 0) <span
                                     class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs"
@@ -783,7 +783,7 @@
                                     -
                                     @endif
                             </td>
-                            <td class="px-8 py-5 text-center text-purple-600 dark:text-purple-400 font-bold">
+                            <td class="px-4 py-3.5 text-center text-purple-600 dark:text-purple-400 font-bold">
                                 @if($twr !== null)
                                 @if($twr < 0) <span
                                     class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs"
@@ -795,29 +795,33 @@
                                     -
                                     @endif
                             </td>
-                            <td class="px-8 py-5 text-center">
+                            <td class="px-4 py-3.5 text-center">
                                 <div class="flex flex-col gap-1 items-center justify-center">
                                     @if ($p['status'] === 'Tidak Hadir / Batal')
                                     <span class="status-badge status-badge-rose">Batal</span>
-                                    @elseif ($p['status'] === 'completed')
-                                    <span class="status-badge status-badge-green">Lengkap</span>
-                                    @elseif ($p['status'] === 'pharmacy')
-                                    <span class="status-badge status-badge-blue">Farmasi</span>
-                                    @elseif ($p['status'] === 'doctor')
-                                    <span class="status-badge status-badge-purple">Dokter</span>
-                                    @elseif ($p['status'] === 'nurse')
-                                    <span class="status-badge status-badge-indigo">Perawat</span>
-                                    @elseif ($p['status'] === 'checkin')
-                                    <span class="status-badge status-badge-amber">Check-in</span>
+                                    @elseif ($p['status'] === 'Lengkap (3,4,5,6,7)')
+                                    <span class="status-badge status-badge-green" title="Lengkap (3,4,5,6,7)">Lengkap</span>
+                                    @elseif ($p['status'] === 'Lengkap (3,4,5,6) - Farmasi Belum Selesai')
+                                    <span class="status-badge status-badge-blue" title="Lengkap (3,4,5,6) - Farmasi Belum Selesai">Lengkap (3-6)</span>
+                                    @elseif ($p['status'] === 'Task 3,4,5')
+                                    <span class="status-badge status-badge-purple" title="Task 3,4,5">Task 3,4,5</span>
+                                    @elseif ($p['status'] === 'Task 3,4')
+                                    <span class="status-badge status-badge-amber" title="Task 3,4">Task 3,4</span>
+                                    @elseif ($p['status'] === 'Task 3')
+                                    <span class="status-badge status-badge-amber" title="Task 3">Task 3</span>
+                                    @elseif ($p['status'] === 'Belum Terkirim')
+                                    <span class="status-badge status-badge-slate"><i class="fas fa-clock mr-1"></i>Belum Terkirim</span>
+                                    @elseif (strpos($p['status'], 'Task ') === 0)
+                                    <span class="status-badge status-badge-slate">{{ $p['status'] }}</span>
                                     @else
-                                    <span class="status-badge status-badge-slate">Menunggu</span>
+                                    <span class="status-badge status-badge-slate">{{ $p['status'] }}</span>
                                     @endif
                                     <span class="sync-status badge {{ $p['sync_status'] === 'synced' ? 'badge-green' : 'badge-slate' }} text-[9px]">
-                                        {{ $p['sync_status'] === 'synced' ? 'BPJS' : 'SIMRS' }}
+                                        {{ $p['sync_status'] === 'synced' ? 'BPJS' : 'Pending' }}
                                     </span>
                                 </div>
                             </td>
-                            <td class="px-8 py-5 text-center" onclick="event.stopPropagation()">
+                            <td class="px-4 py-3.5 text-center" onclick="event.stopPropagation()">
                                 <button onclick="showPatientDetail('{{ $p['no_rawat'] }}')"
                                     class="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-500/10">
                                     <i class="fas fa-search-plus text-xs"></i> Detail
@@ -1453,10 +1457,10 @@
     function initCharts() {
         // --- 1. Bar Chart (Clinic Performance) ---
         const ctxClinic = document.getElementById('clinicChart').getContext('2d');
-        // Gunakan clinic_stats dari analytics (sekarang berisi array of objects)
-        const clinicStats = analytics.clinic_stats || [];
-        const clinicLabels = clinicStats.map(c => c.name).slice(0, 10);
-        const avgTotalTimes = clinicStats.map(c => c.avg_total_time || 0).slice(0, 10);
+        // Convert clinic_stats object {clinicName: {stats}} to array for Chart.js
+        const clinicStatsEntries = Object.entries(analytics.clinic_stats || {});
+        const clinicLabels = clinicStatsEntries.map(([name]) => name).slice(0, 10);
+        const avgTotalTimes = clinicStatsEntries.map(([, data]) => data.total_waktu_rs?.median || 0).slice(0, 10);
 
         clinicChartObj = new Chart(ctxClinic, {
             type: 'bar',
@@ -1491,23 +1495,54 @@
 
         // --- 2. Doughnut Chart (Flow Status Counts) ---
         const ctxStatus = document.getElementById('statusChart').getContext('2d');
-        // Hitung status counts dari patients
         const patients = analytics.patients || [];
-        const statusCounts = {
-            completed: 0, pharmacy: 0, doctor: 0, nurse: 0, checkin: 0, waiting: 0
-        };
+        const statusCounts = {};
+        
         patients.forEach(p => {
-            if (statusCounts[p.status] !== undefined) {
-                statusCounts[p.status]++;
-            } else {
-                statusCounts.waiting++;
+            const status = p.status || 'Belum Terkirim';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+        
+        const standardLabels = [
+            'Lengkap (3,4,5,6,7)',
+            'Lengkap (3,4,5,6) - Farmasi Belum Selesai',
+            'Task 3,4,5',
+            'Task 3,4',
+            'Task 3',
+            'Belum Terkirim',
+            'Tidak Hadir / Batal'
+        ];
+        
+        const statusLabels = [];
+        const statusValues = [];
+        const statusColors = [];
+        
+        const colorMap = {
+            'Lengkap (3,4,5,6,7)': '#10b981',
+            'Lengkap (3,4,5,6) - Farmasi Belum Selesai': '#3b82f6',
+            'Task 3,4,5': '#818cf8',
+            'Task 3,4': '#fb923c',
+            'Task 3': '#f59e0b',
+            'Belum Terkirim': '#64748b',
+            'Tidak Hadir / Batal': '#f43f5e',
+            'Tidak Terdaftar': '#94a3b8'
+        };
+        
+        standardLabels.forEach(label => {
+            if (statusCounts[label] !== undefined && statusCounts[label] > 0) {
+                statusLabels.push(label);
+                statusValues.push(statusCounts[label]);
+                statusColors.push(colorMap[label] || '#64748b');
             }
         });
-        const statusLabels = ['Lengkap', 'Farmasi', 'Dokter', 'Perawat', 'Check-in', 'Menunggu'];
-        const statusValues = [
-            statusCounts.completed, statusCounts.pharmacy, statusCounts.doctor,
-            statusCounts.nurse, statusCounts.checkin, statusCounts.waiting
-        ];
+        
+        Object.entries(statusCounts).forEach(([label, count]) => {
+            if (!standardLabels.includes(label) && count > 0) {
+                statusLabels.push(label);
+                statusValues.push(count);
+                statusColors.push(colorMap[label] || '#cbd5e1');
+            }
+        });
 
         statusChartObj = new Chart(ctxStatus, {
             type: 'doughnut',
@@ -1515,14 +1550,7 @@
                 labels: statusLabels,
                 datasets: [{
                     data: statusValues,
-                    backgroundColor: [
-                        '#10b981', // emerald (completed)
-                        '#3b82f6', // blue (pharmacy)
-                        '#818cf8', // indigo (doctor)
-                        '#6366f1', // violet (nurse)
-                        '#f59e0b', // amber (checkin)
-                        '#64748b'  // slate (waiting)
-                    ],
+                    backgroundColor: statusColors,
                     borderWidth: 0,
                     hoverOffset: 4
                 }]
@@ -1916,7 +1944,10 @@
     // Helper to safely parse different date formats in JS
     function parseJsDate(val) {
         if (!val) return null;
-        const sVal = String(val).trim();
+        let sVal = String(val).trim();
+        // Clean WIB/WITA/WIT
+        sVal = sVal.replace(/\s+(WIB|WITA|WIT)$/i, '');
+
         // If it is a 13-digit timestamp
         if (/^\d{13}$/.test(sVal)) {
             return new Date(parseInt(sVal, 10));
@@ -1925,7 +1956,31 @@
         if (/^\d{10}$/.test(sVal)) {
             return new Date(parseInt(sVal, 10) * 1000);
         }
-        // If it is a standard string datetime
+
+        // Match DD-MM-YYYY HH:mm:ss or DD-MM-YYYY HH:mm
+        const dmyMatch = sVal.match(/^(\d{2})[-/](\d{2})[-/](\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+        if (dmyMatch) {
+            const day = parseInt(dmyMatch[1], 10);
+            const month = parseInt(dmyMatch[2], 10) - 1; // JS months are 0-indexed
+            const year = parseInt(dmyMatch[3], 10);
+            const hour = dmyMatch[4] ? parseInt(dmyMatch[4], 10) : 0;
+            const minute = dmyMatch[5] ? parseInt(dmyMatch[5], 10) : 0;
+            const second = dmyMatch[6] ? parseInt(dmyMatch[6], 10) : 0;
+            return new Date(year, month, day, hour, minute, second);
+        }
+
+        // Match YYYY-MM-DD HH:mm:ss
+        const ymdMatch = sVal.match(/^(\d{4})[-/](\d{2})[-/](\d{2})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+        if (ymdMatch) {
+            const year = parseInt(ymdMatch[1], 10);
+            const month = parseInt(ymdMatch[2], 10) - 1;
+            const day = parseInt(ymdMatch[3], 10);
+            const hour = ymdMatch[4] ? parseInt(ymdMatch[4], 10) : 0;
+            const minute = ymdMatch[5] ? parseInt(ymdMatch[5], 10) : 0;
+            const second = ymdMatch[6] ? parseInt(ymdMatch[6], 10) : 0;
+            return new Date(year, month, day, hour, minute, second);
+        }
+
         const d = new Date(sVal);
         return isNaN(d.getTime()) ? null : d;
     }
@@ -2035,8 +2090,8 @@
             const parsedSent = parseJsDate(sentT);
 
             let statusHTML = '';
-            let lineActive = parsedReal ? 'border-blue-500 dark:border-blue-600' : 'border-slate-200 dark:border-slate-800';
-            let circleColor = parsedReal ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600';
+            let lineActive = parsedSent ? 'border-blue-500 dark:border-blue-600' : 'border-slate-200 dark:border-slate-800';
+            let circleColor = parsedSent ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600';
 
             if (parsedReal && parsedSent) {
                 const diffSec = Math.abs(parsedReal - parsedSent) / 1000;
@@ -2054,6 +2109,7 @@
                 statusHTML = `<span class="inline-flex items-center gap-1 text-[10px] text-slate-400 mt-1"><i class="far fa-circle"></i> Belum Ada</span>`;
             }
 
+            const bpjsTimeStr = parsedSent ? formatTimeOnly(parsedSent) : '--:--:--';
             timelineHTML += `
                 <div class="relative pl-8 pb-6 border-l-2 ${lineActive} last:border-l-0 ml-3.5">
                     <!-- Circle indicator -->
@@ -2062,7 +2118,10 @@
                     </div>
 
                     <div class="flex-grow -mt-1">
-                        <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Task ${i}: ${task.name}</span>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Task ${i}: ${task.name}</span>
+                            <span class="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">${bpjsTimeStr}</span>
+                        </div>
                         <div class="grid grid-cols-2 gap-2 mt-2">
                             <div class="bg-slate-50 dark:bg-slate-900/40 p-2 rounded-xl border border-slate-200/40 dark:border-slate-800/40">
                                 <span class="text-[9px] uppercase font-bold text-slate-400">SIMRS Real</span>
@@ -2070,7 +2129,7 @@
                             </div>
                             <div class="bg-slate-50 dark:bg-slate-900/40 p-2 rounded-xl border border-slate-200/40 dark:border-slate-800/40">
                                 <span class="text-[9px] uppercase font-bold text-slate-400">BPJS Sent</span>
-                                <p class="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5">${formatTimeOnly(parsedSent)}</p>
+                                <p class="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5">${bpjsTimeStr}</p>
                             </div>
                         </div>
                         ${statusHTML}
@@ -2130,7 +2189,7 @@
 
                 <!-- Durations Summary -->
                 <div class="space-y-2">
-                    <h4 class="text-xs uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">Kalkulasi Durasi Internal (DB SIMRS)</h4>
+                    <h4 class="text-xs uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">Kalkulasi Durasi Antrean Resmi (BPJS)</h4>
                     <div class="space-y-2.5">
                         ${durationItemsHTML || '<div class="text-xs text-slate-400 p-4 text-center bg-slate-50 dark:bg-slate-900 rounded-2xl">Tidak ada data pelayanan yang terhitung.</div>'}
                     </div>
@@ -2953,7 +3012,7 @@
                 autoRefreshIcon?.classList.remove('fa-spin');
                 if (autoRefreshTimer) {
                     clearInterval(autoRefreshTimer);
- file                    autoRefreshTimer = null;
+                    autoRefreshTimer = null;
                 }
             }
         });

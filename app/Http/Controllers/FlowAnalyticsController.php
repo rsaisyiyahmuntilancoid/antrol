@@ -109,7 +109,7 @@ class FlowAnalyticsController extends Controller
             }
  
             // Sync/fetch from BPJS automatically to populate/update the cache in DB
-            $kodebooking = $reg->referensiMobilejknBpjs->nobooking ?? $bpjsVisit?->kodebooking ?? $noRawat;
+            $kodebooking = $reg?->referensiMobilejknBpjs?->nobooking ?? $bpjsVisit?->kodebooking ?? $noRawat;
             if ($kodebooking && (!$bpjsVisit || !$bpjsVisit->last_sync || $bpjsVisit->last_sync->lt(now()->subMinutes(15)))) {
                 $this->mobileJknService->getListTask($kodebooking);
                 // Reload visit after sync
@@ -200,7 +200,7 @@ class FlowAnalyticsController extends Controller
                     'nm_poli'        => $reg?->poliklinik->nm_poli ?? $bpjsVisit?->namapoli ?? 'N/A',
                     'nm_dokter'      => $docName,
                     'tgl_registrasi' => ($bpjsVisit && $bpjsVisit->tanggalperiksa instanceof Carbon) ? $bpjsVisit->tanggalperiksa->format('d M Y') : ($reg?->tgl_registrasi instanceof Carbon ? $reg->tgl_registrasi->format('d M Y') : (string) $reg?->tgl_registrasi),
-                    'jam_reg'        => $reg?->jam_reg ? substr((string) $reg->jam_reg, 0, 5) : null,
+                    'jam_reg'        => $reg?->jam_reg ? ($reg->jam_reg instanceof \DateTimeInterface ? $reg->jam_reg->format('H:i') : substr((string) $reg->jam_reg, 0, 5)) : null,
                     'stts'           => $reg?->stts ?? '',
                     'has_booking'    => (bool) ($reg?->referensiMobilejknBpjs ?? $bpjsVisit),
                     'kode_booking'   => $kodebooking,
