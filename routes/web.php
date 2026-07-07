@@ -90,3 +90,19 @@ Route::prefix('api/command-output')->group(function () {
 });
 Route::post('/api/mobilejkn/update-task-id', [MobileJknController::class, 'updateTaskId']);
 Route::post('/api/antrian', [App\Http\Controllers\MobileJknController::class, 'sendAntrian']);
+
+// Flow Monitoring Routes
+Route::get('/monitoring', [App\Http\Controllers\FlowAnalyticsController::class, 'index'])->name('monitoring.index');
+Route::prefix('api/monitoring')->group(function () {
+    Route::get('/analytics', [App\Http\Controllers\FlowAnalyticsController::class, 'getAnalyticsData']);
+    Route::get('/clinic/{nmPoli}', [App\Http\Controllers\FlowAnalyticsController::class, 'getClinicDetail']);
+    Route::get('/patient/{noRawat}', [App\Http\Controllers\FlowAnalyticsController::class, 'getPatientDetail'])->where('noRawat', '.*');
+    Route::get('/verify/{noRawat}', [App\Http\Controllers\FlowAnalyticsController::class, 'verifyBpjs'])->where('noRawat', '.*');
+    Route::get('/bpjs-dashboard/tanggal', [App\Http\Controllers\FlowAnalyticsController::class, 'getBpjsDashboardTanggal']);
+    Route::get('/bpjs-dashboard/bulan', [App\Http\Controllers\FlowAnalyticsController::class, 'getBpjsDashboardBulan']);
+    Route::post('/sync-patient', [App\Http\Controllers\FlowAnalyticsController::class, 'syncPatient']);
+    Route::post('/sync-batch', [App\Http\Controllers\FlowAnalyticsController::class, 'syncBatch']);
+    Route::post('/sync-today', [App\Http\Controllers\FlowAnalyticsController::class, 'syncToday']);
+    Route::post('/sync-range', [App\Http\Controllers\FlowAnalyticsController::class, 'syncRange']);
+    Route::get('/sync-status', [App\Http\Controllers\FlowAnalyticsController::class, 'syncStatus']);
+});
