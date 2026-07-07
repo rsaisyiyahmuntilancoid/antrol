@@ -1402,6 +1402,8 @@
 <script>
     // Global Dashboard data parsed from Laravel
     const analytics = @json($analytics);
+    const dateFrom = '{{ $dateFrom }}';
+    const dateTo = '{{ $dateTo }}';
     let activeTab = 'simrs';
 
     // Chart instances
