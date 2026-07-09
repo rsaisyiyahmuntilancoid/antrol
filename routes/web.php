@@ -93,6 +93,7 @@ Route::post('/api/antrian', [App\Http\Controllers\MobileJknController::class, 's
 
 // Flow Monitoring Routes
 Route::get('/monitoring', [App\Http\Controllers\FlowAnalyticsController::class, 'index'])->name('monitoring.index');
+Route::get('/monitoring/print', [App\Http\Controllers\FlowAnalyticsController::class, 'print'])->name('monitoring.print');
 Route::prefix('api/monitoring')->group(function () {
     Route::get('/analytics', [App\Http\Controllers\FlowAnalyticsController::class, 'getAnalyticsData']);
     Route::get('/clinic/{nmPoli}', [App\Http\Controllers\FlowAnalyticsController::class, 'getClinicDetail']);

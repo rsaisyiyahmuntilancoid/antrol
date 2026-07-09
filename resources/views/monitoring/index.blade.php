@@ -3,7 +3,26 @@
 @section('title', 'Flow Analytics & Monitoring')
 
 @section('content')
-<div class="max-w-7xl mx-auto px-6 py-12 relative overflow-hidden">
+<div class="max-w-[1600px] mx-auto px-6 py-12 relative overflow-hidden">
+    <!-- KOP SURAT (PRINT ONLY) -->
+    <div class="hidden print:block mb-8 bg-white text-black p-4">
+        <div class="flex items-center gap-6 border-b-4 border-double border-slate-900 pb-4">
+            <img src="{{ asset('logo-aisyiyah.png') }}" class="w-20 h-20 object-contain shrink-0" alt="Logo RSU Aisyiyah Muntilan">
+            <div class="grow text-left">
+                <h1 class="text-xl font-bold tracking-tight text-slate-900 uppercase leading-none">RUMAH SAKIT UMUM AISYIYAH MUNTILAN</h1>
+                <p class="text-xs font-semibold text-slate-700 mt-1">Jln. KH A. Dahlan No. 24 Muntilan, Magelang 56414</p>
+                <p class="text-xs font-semibold text-slate-700">Telp : (0293) 587372, 587723 (hunting)</p>
+                <p class="text-xs font-semibold text-slate-700">Website : www.rsaisyiyah-muntilan.com</p>
+            </div>
+        </div>
+        
+        <!-- Printed Report Title -->
+        <div class="mt-6 text-center">
+            <h2 class="text-lg font-bold uppercase tracking-wide text-slate-900">Laporan Analisis Antrean Pelayanan & Waktu Tunggu</h2>
+            <p class="text-xs font-bold text-slate-600 mt-1">Periode: {{ \Carbon\Carbon::parse($dateFrom)->format('d-m-Y') }} s/d {{ \Carbon\Carbon::parse($dateTo)->format('d-m-Y') }}</p>
+        </div>
+    </div>
+
     @if(session('warning'))
     <div
         class="bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 p-4 rounded-2xl mb-6 font-semibold text-sm flex items-center gap-3">
@@ -136,6 +155,12 @@
                     <span>Sync Sekarang</span>
                 </button>
                 @endif
+                <button onclick="window.open('{{ route('monitoring.print') }}?date_from=' + dateFrom + '&date_to=' + dateTo, '_blank')"
+                    class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-rose-500/10 flex items-center gap-2"
+                    title="Cetak/Download PDF Laporan">
+                    <i class="fas fa-file-pdf"></i>
+                    <span>Cetak PDF</span>
+                </button>
                 <button onclick="window.location.reload()"
                     class="glass p-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                     title="Refresh Halaman">
@@ -208,7 +233,7 @@
     <!-- TAB 1: INTERNAL SIMRS DASHBOARD -->
     <div id="tab-simrs-content" class="space-y-8 animate-in fade-in duration-300">
         <!-- KPI Cards Grid -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-6">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
             <!-- Card 1: Total Patients -->
             <div class="glass p-6 rounded-3xl card-hover relative overflow-hidden group">
                 <div
@@ -305,7 +330,34 @@
                 </div>
             </div>
 
-            <!-- Card 5: Median Total Waktu RS -->
+            <!-- Card 5: Median Layan Farmasi -->
+            <div class="glass p-6 rounded-3xl card-hover relative overflow-hidden group">
+                <div
+                    class="absolute -right-4 -bottom-4 text-slate-200/20 dark:text-slate-800/10 text-7xl group-hover:scale-110 transition-transform duration-300">
+                    <i class="fas fa-capsules"></i>
+                </div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Med. Layan Farmasi</h3>
+                <p class="text-3xl font-bold text-teal-600 dark:text-teal-400 mt-3">
+                    @php $wlf = $analytics['global_stats']['waktu_layan_farmasi']; @endphp
+                    @if($wlf['count'] > 0)
+                    @if($wlf['median'] < 0) <span class="text-rose-500">{{ $wlf['median'] }}</span><span
+                            class="text-sm font-semibold ml-0.5 text-rose-400">m</span>
+                        @else
+                        {{ $wlf['median'] }}<span class="text-sm font-semibold ml-0.5 text-slate-400">m</span>
+                        @endif
+                        @else
+                        <span class="text-slate-300 dark:text-slate-600">—</span>
+                        @endif
+                </p>
+                <div class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
+                    <span>Task 6 &rarr; 7 (Racik Obat)</span>
+                    @if($wlf['count'] > 0)
+                    <span class="text-slate-400">n={{ $wlf['count'] }}</span>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Card 6: Median Total Waktu RS -->
             <div class="glass p-6 rounded-3xl card-hover relative overflow-hidden group">
                 <div
                     class="absolute -right-4 -bottom-4 text-slate-200/20 dark:text-slate-800/10 text-7xl group-hover:scale-110 transition-transform duration-300">
@@ -496,21 +548,14 @@
                 <div class="relative flex-grow flex items-center justify-center min-h-[220px]">
                     <canvas id="statusChart"></canvas>
                 </div>
-                <div class="mt-4 grid grid-cols-2 gap-2 text-xs font-semibold text-slate-500">
-                    <div class="flex items-center"><span class="w-3 h-3 bg-emerald-500 rounded-full mr-2"></span>
-                        Lengkap 3-7</div>
-                    <div class="flex items-center"><span class="w-3 h-3 bg-blue-500 rounded-full mr-2"></span> Lengkap
-                        3-6</div>
-                    <div class="flex items-center"><span class="w-3 h-3 bg-indigo-400 rounded-full mr-2"></span> Lengkap
-                        3-5</div>
-                    <div class="flex items-center"><span class="w-3 h-3 bg-amber-500 rounded-full mr-2"></span> Belum
-                        Lengkap</div>
+                <div id="status-chart-legend" class="mt-4 grid grid-cols-2 gap-2 text-xs font-semibold text-slate-500">
+                    <!-- Dynamic legend items will be generated here -->
                 </div>
             </div>
         </div>
 
         <!-- Summary Tables per Clinic & Doctor -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
             <!-- Clinics Summary Table -->
             <div class="glass rounded-[32px] overflow-hidden shadow-sm">
                 <div
@@ -520,61 +565,39 @@
                     </h3>
                     <span class="text-xs text-slate-400 font-semibold">Klik baris untuk detail</span>
                 </div>
-                <div class="overflow-x-auto max-h-[320px] overflow-y-auto">
+                <div class="overflow-x-auto max-h-[380px] overflow-y-auto">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
                             <tr
-                                class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40">
-                                <th class="px-6 py-4">Poliklinik</th>
-                                <th class="px-6 py-4 text-center">Pasien</th>
-                                <th class="px-6 py-4 text-center">Med. Tunggu</th>
-                                <th class="px-6 py-4 text-center">Med. Layan</th>
-                                <th class="px-6 py-4 text-center">Med. Total</th>
+                                class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40 text-[11px] uppercase tracking-wider">
+                                <th class="px-4 py-3">Poliklinik</th>
+                                <th class="px-3 py-3 text-center">Pasien</th>
+                                <th class="px-3 py-3 text-center">Tunggu Poli</th>
+                                <th class="px-3 py-3 text-center">Layan Poli</th>
+                                <th class="px-3 py-3 text-center">Tunggu Farm.</th>
+                                <th class="px-3 py-3 text-center">Layan Farm.</th>
+                                <th class="px-3 py-3 text-center">Total RS</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                             @foreach ($analytics['clinic_stats'] as $clinic => $stats)
                             <tr class="hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors font-medium cursor-pointer"
                                 onclick="showClinicDetail('{{ addslashes($clinic) }}', '{{ $dateFrom }}', '{{ $dateTo }}')">
-                                <td class="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{{ $clinic }}</td>
-                                <td class="px-6 py-4 text-center">{{ $stats['patient_count'] }}</td>
-                                <td class="px-6 py-4 text-center font-semibold">
-                                    @if($stats['waktu_tunggu_poli']['count'] > 0)
-                                    @if($stats['waktu_tunggu_poli']['median'] < 0) <span
-                                        class="text-rose-500 font-bold">{{ $stats['waktu_tunggu_poli']['median']
-                                        }}m</span>
+                                <td class="px-4 py-3 font-bold text-slate-800 dark:text-slate-200 text-xs">{{ $clinic }}</td>
+                                <td class="px-3 py-3 text-center text-xs">{{ $stats['patient_count'] }}</td>
+                                @foreach (['waktu_tunggu_poli' => 'blue', 'waktu_layan_poli' => 'emerald', 'waktu_tunggu_farmasi' => 'indigo', 'waktu_layan_farmasi' => 'teal', 'total_waktu_rs' => 'purple'] as $metricKey => $color)
+                                <td class="px-3 py-3 text-center font-semibold text-xs">
+                                    @if($stats[$metricKey]['count'] > 0)
+                                        @if($stats[$metricKey]['median'] < 0)
+                                            <span class="text-rose-500 font-bold">{{ $stats[$metricKey]['median'] }}m</span>
                                         @else
-                                        <span class="text-blue-600 dark:text-blue-400">{{
-                                            $stats['waktu_tunggu_poli']['median'] }}m</span>
+                                            <span class="text-{{ $color }}-600 dark:text-{{ $color }}-400">{{ $stats[$metricKey]['median'] }}m</span>
                                         @endif
-                                        @else
-                                        <span class="text-slate-300">—</span>
-                                        @endif
+                                    @else
+                                        <span class="text-slate-300">&mdash;</span>
+                                    @endif
                                 </td>
-                                <td class="px-6 py-4 text-center font-semibold">
-                                    @if($stats['waktu_layan_poli']['count'] > 0)
-                                    @if($stats['waktu_layan_poli']['median'] < 0) <span class="text-rose-500 font-bold">
-                                        {{ $stats['waktu_layan_poli']['median'] }}m</span>
-                                        @else
-                                        <span class="text-emerald-600 dark:text-emerald-400">{{
-                                            $stats['waktu_layan_poli']['median'] }}m</span>
-                                        @endif
-                                        @else
-                                        <span class="text-slate-300">—</span>
-                                        @endif
-                                </td>
-                                <td class="px-6 py-4 text-center font-semibold">
-                                    @if($stats['total_waktu_rs']['count'] > 0)
-                                    @if($stats['total_waktu_rs']['median'] < 0) <span class="text-rose-500 font-bold">{{
-                                        $stats['total_waktu_rs']['median'] }}m</span>
-                                        @else
-                                        <span class="text-purple-600 dark:text-purple-400 font-bold">{{
-                                            $stats['total_waktu_rs']['median'] }}m</span>
-                                        @endif
-                                        @else
-                                        <span class="text-slate-300">—</span>
-                                        @endif
-                                </td>
+                                @endforeach
                             </tr>
                             @endforeach
                         </tbody>
@@ -590,46 +613,38 @@
                         <i class="fas fa-user-md text-emerald-600"></i> Beban Kerja & Median Durasi Dokter
                     </h3>
                 </div>
-                <div class="overflow-x-auto max-h-[320px] overflow-y-auto">
+                <div class="overflow-x-auto max-h-[380px] overflow-y-auto">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
                             <tr
-                                class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40">
-                                <th class="px-6 py-4">Nama Dokter</th>
-                                <th class="px-6 py-4 text-center">Pasien</th>
-                                <th class="px-6 py-4 text-center">Med. Layan Poli</th>
-                                <th class="px-6 py-4 text-center">Med. Total RS</th>
+                                class="bg-slate-50/50 dark:bg-slate-800/20 text-slate-400 font-semibold border-b border-slate-200/40 dark:border-slate-800/40 text-[11px] uppercase tracking-wider">
+                                <th class="px-4 py-3">Nama Dokter</th>
+                                <th class="px-3 py-3 text-center">Pasien</th>
+                                <th class="px-3 py-3 text-center">Tunggu Poli</th>
+                                <th class="px-3 py-3 text-center">Layan Poli</th>
+                                <th class="px-3 py-3 text-center">Tunggu Farm.</th>
+                                <th class="px-3 py-3 text-center">Layan Farm.</th>
+                                <th class="px-3 py-3 text-center">Total RS</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                             @foreach ($analytics['doctor_stats'] as $doctor => $stats)
                             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors font-medium">
-                                <td class="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{{ $doctor }}</td>
-                                <td class="px-6 py-4 text-center">{{ $stats['patient_count'] }}</td>
-                                <td class="px-6 py-4 text-center font-semibold">
-                                    @if($stats['waktu_layan_poli']['count'] > 0)
-                                    @if($stats['waktu_layan_poli']['median'] < 0) <span class="text-rose-500 font-bold">
-                                        {{ $stats['waktu_layan_poli']['median'] }}m</span>
+                                <td class="px-4 py-3 font-bold text-slate-800 dark:text-slate-200 text-xs">{{ $doctor }}</td>
+                                <td class="px-3 py-3 text-center text-xs">{{ $stats['patient_count'] }}</td>
+                                @foreach (['waktu_tunggu_poli' => 'blue', 'waktu_layan_poli' => 'emerald', 'waktu_tunggu_farmasi' => 'indigo', 'waktu_layan_farmasi' => 'teal', 'total_waktu_rs' => 'purple'] as $metricKey => $color)
+                                <td class="px-3 py-3 text-center font-semibold text-xs">
+                                    @if($stats[$metricKey]['count'] > 0)
+                                        @if($stats[$metricKey]['median'] < 0)
+                                            <span class="text-rose-500 font-bold">{{ $stats[$metricKey]['median'] }}m</span>
                                         @else
-                                        <span class="text-emerald-600 dark:text-emerald-400">{{
-                                            $stats['waktu_layan_poli']['median'] }}m</span>
+                                            <span class="text-{{ $color }}-600 dark:text-{{ $color }}-400">{{ $stats[$metricKey]['median'] }}m</span>
                                         @endif
-                                        @else
-                                        <span class="text-slate-300">—</span>
-                                        @endif
+                                    @else
+                                        <span class="text-slate-300">&mdash;</span>
+                                    @endif
                                 </td>
-                                <td class="px-6 py-4 text-center font-semibold">
-                                    @if($stats['total_waktu_rs']['count'] > 0)
-                                    @if($stats['total_waktu_rs']['median'] < 0) <span class="text-rose-500 font-bold">{{
-                                        $stats['total_waktu_rs']['median'] }}m</span>
-                                        @else
-                                        <span class="text-purple-600 dark:text-purple-400 font-bold">{{
-                                            $stats['total_waktu_rs']['median'] }}m</span>
-                                        @endif
-                                        @else
-                                        <span class="text-slate-300">—</span>
-                                        @endif
-                                </td>
+                                @endforeach
                             </tr>
                             @endforeach
                         </tbody>
@@ -702,6 +717,7 @@
                             <th class="px-4 py-4 text-center">Tunggu Poli</th>
                             <th class="px-4 py-4 text-center">Layan Poli</th>
                             <th class="px-4 py-4 text-center">Tunggu Farm.</th>
+                            <th class="px-4 py-4 text-center">Layan Farm.</th>
                             <th class="px-4 py-4 text-center">Total RS</th>
                             <th class="px-4 py-4 text-center">Status</th>
                             <th class="px-4 py-4 text-center">Aksi</th>
@@ -742,10 +758,11 @@
                                 </div>
                             </td>
                             @php
-                            $wtp = $p['durations']['waktu_tunggu_poli'] ?? $p['durations']['checkin_to_nurse'];
-                            $wlp = $p['durations']['waktu_layan_poli'] ?? $p['durations']['nurse_to_doctor'];
-                            $wtf = $p['durations']['waktu_tunggu_farmasi'] ?? $p['durations']['doctor_to_pharmacy'];
-                            $twr = $p['durations']['total_waktu_rs'] ?? $p['durations']['total_time'];
+                            $wtp = $p['durations']['waktu_tunggu_poli'] ?? null;
+                            $wlp = $p['durations']['waktu_layan_poli'] ?? null;
+                            $wtf = $p['durations']['waktu_tunggu_farmasi'] ?? null;
+                            $wlf = $p['durations']['waktu_layan_farmasi'] ?? null;
+                            $twr = $p['durations']['total_waktu_rs'] ?? null;
                             @endphp
                             <td class="px-4 py-3.5 text-center text-blue-600 dark:text-blue-400 font-semibold">
                                 @if($wtp !== null)
@@ -778,6 +795,18 @@
                                     title="Anomali: Durasi Negatif">{{ round($wtf, 1) }}m</span>
                                     @else
                                     {{ round($wtf, 1) }}m
+                                    @endif
+                                    @else
+                                    -
+                                    @endif
+                            </td>
+                            <td class="px-4 py-3.5 text-center text-teal-600 dark:text-teal-400 font-semibold">
+                                @if($wlf !== null)
+                                @if($wlf < 0) <span
+                                    class="inline-flex px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 font-bold text-xs"
+                                    title="Anomali: Durasi Negatif">{{ round($wlf, 1) }}m</span>
+                                    @else
+                                    {{ round($wlf, 1) }}m
                                     @endif
                                     @else
                                     -
@@ -1394,6 +1423,170 @@
         background-color: rgba(148, 163, 184, 0.12);
         color: #94a3b8;
     }
+
+    @media print {
+        /* Set page size to A4 Portrait with standard margins */
+        @page {
+            size: A4 portrait;
+            margin: 15mm 15mm 20mm 15mm;
+        }
+
+        /* Prevent blank/clipped pages by resetting heights & positions on wrappers */
+        html, body, .h-full, .min-h-full, main, .max-w-\[1600px\], 
+        #tab-simrs-content, #tab-bpjs-content, .flex-grow {
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            position: static !important;
+            background-color: white !important;
+            color: black !important;
+        }
+
+        /* Hide screen-only interactive controls */
+        nav, footer, 
+        #btn-tab-simrs, #btn-tab-bpjs,
+        .flex.bg-slate-100, 
+        #simrs-date-filter, #bpjs-dashboard-filter,
+        #sync-progress-container, #range-sync-banner,
+        .glass.rounded-3xl.p-8.mb-8.space-y-6,
+        #patient-registry-card > div.border-b > div.flex-wrap,
+        .pagination-controls,
+        #bpjs-report-container > div.bg-slate-50\/50 > div,
+        #bpjs-pagination-controls,
+        button, select, input {
+            display: none !important;
+        }
+
+        /* Layout stretching for printing paper */
+        main, .max-w-\[1600px\] {
+            padding: 0 !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+            width: 100% !important;
+        }
+
+        /* Redesign glass widgets to flat, bordered panels */
+        .glass {
+            background-color: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            padding: 12px !important;
+            margin-bottom: 1.5rem !important;
+            page-break-inside: avoid !important;
+        }
+
+        .glass h3 {
+            color: #475569 !important;
+            font-size: 10px !important;
+            text-transform: uppercase !important;
+        }
+
+        .glass p {
+            color: #0f172a !important;
+            font-size: 1.5rem !important;
+            font-weight: 800 !important;
+            margin-top: 4px !important;
+        }
+
+        /* Hide icons on KPI cards in print mode */
+        .glass > div[class*="absolute"] {
+            display: none !important;
+        }
+
+        /* Ensure charts and indicators render colors cleanly */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-scheme: light !important;
+        }
+
+        /* Hide non-active tab */
+        #tab-simrs-content.hidden, #tab-bpjs-content.hidden {
+            display: none !important;
+        }
+
+        /* Prevent scrollbars on list tables */
+        .overflow-x-auto, .overflow-y-auto {
+            overflow: visible !important;
+            max-h-none !important;
+            max-height: none !important;
+        }
+
+        /* Professional table layouts with borders */
+        table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-top: 10px !important;
+            margin-bottom: 20px !important;
+        }
+
+        table, tr, td, th {
+            page-break-inside: avoid !important;
+        }
+
+        table th {
+            background-color: #f1f5f9 !important;
+            color: #0f172a !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            font-size: 9px !important;
+            border: 1px solid #94a3b8 !important;
+            padding: 6px 4px !important;
+        }
+
+        table td {
+            color: #1e293b !important;
+            border: 1px solid #cbd5e1 !important;
+            padding: 6px 4px !important;
+            font-size: 9px !important;
+        }
+
+        /* Hide Action columns (last column of tables) */
+        table th:last-child, table td:last-child {
+            display: none !important;
+        }
+
+        /* Compact Chart rendering */
+        canvas {
+            max-width: 100% !important;
+            max-height: 220px !important;
+        }
+
+        /* Page layout grid adjustments */
+        .grid {
+            display: grid !important;
+        }
+
+        .grid-cols-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+
+        .grid-cols-1 {
+            grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+        }
+
+        .lg\:grid-cols-3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        }
+
+        .lg\:col-span-2 {
+            grid-column: span 2 / span 2 !important;
+        }
+
+        .lg\:col-span-1 {
+            grid-column: span 1 / span 1 !important;
+        }
+
+        .xl\:grid-cols-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+
+        .lg\:grid-cols-6 {
+            grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        }
+    }
 </style>
 @endpush
 
@@ -1459,10 +1652,12 @@
     function initCharts() {
         // --- 1. Bar Chart (Clinic Performance) ---
         const ctxClinic = document.getElementById('clinicChart').getContext('2d');
-        // Convert clinic_stats object {clinicName: {stats}} to array for Chart.js
         const clinicStatsEntries = Object.entries(analytics.clinic_stats || {});
-        const clinicLabels = clinicStatsEntries.map(([name]) => name).slice(0, 10);
-        const avgTotalTimes = clinicStatsEntries.map(([, data]) => data.total_waktu_rs?.median || 0).slice(0, 10);
+        const clinicLabels = clinicStatsEntries.map(([name]) => name).slice(0, 8);
+        const wtpData = clinicStatsEntries.map(([, data]) => data.waktu_tunggu_poli?.median || 0).slice(0, 8);
+        const wlpData = clinicStatsEntries.map(([, data]) => data.waktu_layan_poli?.median || 0).slice(0, 8);
+        const wtfData = clinicStatsEntries.map(([, data]) => data.waktu_tunggu_farmasi?.median || 0).slice(0, 8);
+        const wlfData = clinicStatsEntries.map(([, data]) => data.waktu_layan_farmasi?.median || 0).slice(0, 8);
 
         clinicChartObj = new Chart(ctxClinic, {
             type: 'bar',
@@ -1470,10 +1665,28 @@
                 labels: clinicLabels,
                 datasets: [
                     {
-                        label: 'Rata-rata Total Durasi',
-                        data: avgTotalTimes,
+                        label: 'Tunggu Poli',
+                        data: wtpData,
+                        backgroundColor: 'rgba(245, 158, 11, 0.85)', // Amber
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'Layan Poli',
+                        data: wlpData,
                         backgroundColor: 'rgba(59, 130, 246, 0.85)', // Blue
-                        borderRadius: 8,
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'Tunggu Farmasi',
+                        data: wtfData,
+                        backgroundColor: 'rgba(168, 85, 247, 0.85)', // Purple
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'Layan Farmasi',
+                        data: wlfData,
+                        backgroundColor: 'rgba(20, 184, 166, 0.85)', // Teal
+                        borderRadius: 4,
                     }
                 ]
             },
@@ -1484,13 +1697,13 @@
                     legend: {
                         position: 'top',
                         labels: {
-                            font: { family: 'Plus Jakarta Sans', weight: '600' }
+                            font: { family: 'Plus Jakarta Sans', weight: '600', size: 10 }
                         }
                     }
                 },
                 scales: {
-                    x: { grid: { display: false } },
-                    y: { border: { dash: [4, 4] }, title: { display: true, text: 'Menit' } }
+                    x: { grid: { display: false }, stacked: true },
+                    y: { border: { dash: [4, 4] }, title: { display: true, text: 'Median Menit' }, stacked: true }
                 }
             }
         });
@@ -1520,13 +1733,13 @@
         const statusColors = [];
         
         const colorMap = {
-            'Lengkap (3,4,5,6,7)': '#10b981',
-            'Lengkap (3,4,5,6) - Farmasi Belum Selesai': '#3b82f6',
-            'Task 3,4,5': '#818cf8',
-            'Task 3,4': '#fb923c',
-            'Task 3': '#f59e0b',
-            'Belum Terkirim': '#64748b',
-            'Tidak Hadir / Batal': '#f43f5e',
+            'Lengkap (3,4,5,6,7)': '#10b981', // Emerald
+            'Lengkap (3,4,5,6) - Farmasi Belum Selesai': '#3b82f6', // Blue
+            'Task 3,4,5': '#818cf8', // Indigo
+            'Task 3,4': '#fb923c', // Orange
+            'Task 3': '#f59e0b', // Amber
+            'Belum Terkirim': '#64748b', // Slate
+            'Tidak Hadir / Batal': '#f43f5e', // Rose
             'Tidak Terdaftar': '#94a3b8'
         };
         
@@ -1566,6 +1779,26 @@
                 }
             }
         });
+
+        // Dynamic status legend render
+        const legendContainer = document.getElementById('status-chart-legend');
+        if (legendContainer) {
+            legendContainer.innerHTML = statusLabels.map((label, idx) => {
+                const color = statusColors[idx];
+                const val = statusValues[idx];
+                let shortLabel = label;
+                if (label === 'Lengkap (3,4,5,6,7)') shortLabel = 'Lengkap 3-7';
+                else if (label === 'Lengkap (3,4,5,6) - Farmasi Belum Selesai') shortLabel = 'Lengkap 3-6';
+                else if (label === 'Tidak Hadir / Batal') shortLabel = 'Batal';
+                
+                return `
+                    <div class="flex items-center min-w-0" title="${label}: ${val} pasien">
+                        <span class="w-2.5 h-2.5 rounded-full mr-2 shrink-0 animate-pulse" style="background-color: ${color}"></span>
+                        <span class="truncate text-[11px] font-bold text-slate-600 dark:text-slate-400">${shortLabel} <span class="text-[9px] font-semibold text-slate-400">(${val})</span></span>
+                    </div>
+                `;
+            }).join('');
+        }
     }
 
     // Pagination variables
@@ -2057,6 +2290,10 @@
                     if (key === 'waktu_layan_poli') {
                         boxClass = 'bg-emerald-500/5 border border-emerald-500/10 dark:border-emerald-500/20';
                         badgeClass = 'text-emerald-600 dark:text-emerald-400 font-bold';
+                    }
+                    if (key === 'waktu_layan_farmasi') {
+                        boxClass = 'bg-teal-500/5 border border-teal-500/10 dark:border-teal-500/20';
+                        badgeClass = 'text-teal-600 dark:text-teal-400 font-bold';
                     }
                     if (key === 'total_waktu_rs') {
                         boxClass = 'bg-blue-600/5 border border-blue-600/10 dark:border-blue-600/20';
@@ -2576,12 +2813,14 @@
                     totalQueues: 0,
                     totalWaitPoli: 0,
                     totalLayanPoli: 0,
+                    totalLayanFarmasi: 0,
                     count: 0
                 };
             }
             poliMap[name].totalQueues += parseInt(item.jumlah_antrean || 0);
             poliMap[name].totalWaitPoli += parseFloat(item.avg_waktu_task3 || 0);
             poliMap[name].totalLayanPoli += parseFloat(item.avg_waktu_task4 || 0);
+            poliMap[name].totalLayanFarmasi += parseFloat(item.avg_waktu_task6 || 0);
             poliMap[name].count += 1;
         });
 
@@ -2594,6 +2833,7 @@
         const queueData = sortedForCharts.map(item => item.totalQueues);
         const waitData = sortedForCharts.map(item => (item.totalWaitPoli / item.count / 60).toFixed(1));
         const layanData = sortedForCharts.map(item => (item.totalLayanPoli / item.count / 60).toFixed(1));
+        const layanFarmasiData = sortedForCharts.map(item => (item.totalLayanFarmasi / item.count / 60).toFixed(1));
 
         // Render/Update Volume Chart
         if (bpjsVolumeChartObj) bpjsVolumeChartObj.destroy();
@@ -2645,6 +2885,14 @@
                         data: layanData,
                         backgroundColor: 'rgba(16, 185, 129, 0.7)',
                         borderColor: 'rgb(16, 185, 129)',
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    },
+                    {
+                        label: 'Layan Farmasi (T6)',
+                        data: layanFarmasiData,
+                        backgroundColor: 'rgba(20, 184, 166, 0.7)',
+                        borderColor: 'rgb(20, 184, 166)',
                         borderWidth: 1.5,
                         borderRadius: 6
                     }

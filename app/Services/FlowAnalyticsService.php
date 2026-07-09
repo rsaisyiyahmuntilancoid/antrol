@@ -59,11 +59,6 @@ class FlowAnalyticsService
         }
 
         $durations = [
-            'checkin_to_nurse'     => $this->diffMinutes($tasks[3], $tasks[4]),
-            'nurse_to_doctor'      => $this->diffMinutes($tasks[4], $tasks[5]),
-            'doctor_to_pharmacy'   => $this->diffMinutes($tasks[5], $tasks[6]),
-            'pharmacy_to_done'     => $this->diffMinutes($tasks[6], $tasks[7]),
-            'total_time'           => $this->diffMinutes($tasks[3], $tasks[7] ?? $tasks[5] ?? null),
             'waktu_tunggu_poli'    => $this->diffMinutes($tasks[3], $tasks[4]),
             'waktu_layan_poli'     => $this->diffMinutes($tasks[4], $tasks[5]),
             'waktu_tunggu_farmasi' => $this->diffMinutes($tasks[5], $tasks[6]),
@@ -240,6 +235,7 @@ class FlowAnalyticsService
             'regPeriksa.poliklinik',
             'regPeriksa.dokter',
             'regPeriksa.referensiMobilejknBpjs',
+            'regPeriksa.referensiMobilejknBpjsTaskid',
             'regPeriksa.pemeriksaanRalan',
             'regPeriksa.resepObat',
         ])
@@ -473,6 +469,7 @@ class FlowAnalyticsService
         try {
             $reg = RegPeriksa::with([
                 'referensiMobilejknBpjs',
+                'referensiMobilejknBpjsTaskid',
                 'pasien',
                 'poliklinik',
                 'dokter',
@@ -621,7 +618,7 @@ class FlowAnalyticsService
         }
         foreach ($taskData as $task) {
             $taskId = $task['taskid'] ?? null;
-            $waktu  = $task['waktu'] ?? null;
+            $waktu  = $task['wakturs'] ?? null;
             if ($taskId && $waktu && array_key_exists($taskId, $timestamps)) {
                 $timestamps[$taskId] = $this->parseTaskWaktu($waktu);
             }
@@ -677,22 +674,46 @@ class FlowAnalyticsService
             $timestamps[3] = $timestamps[1];
         }
 
-        $pemeriksaan = $reg->pemeriksaanRalan;
-        if ($pemeriksaan && $pemeriksaan->isNotEmpty()) {
-            $first         = $pemeriksaan->sortBy('tgl_periksa')->first();
-            $last          = $pemeriksaan->sortByDesc('tgl_periksa')->first();
-            $timestamps[4] = $this->parseTimestamp($first->tgl_periksa, $first->jam_periksa);
-            $timestamps[5] = $this->parseTimestamp($last->tgl_periksa, $last->jam_periksa);
+        // 1. First attempt: get from referensiMobilejknBpjsTaskid table
+        if ($reg->referensiMobilejknBpjsTaskid && $reg->referensiMobilejknBpjsTaskid->isNotEmpty()) {
+            foreach ($reg->referensiMobilejknBpjsTaskid as $taskIdRecord) {
+                $tid = (int)$taskIdRecord->taskid;
+                if (array_key_exists($tid, $timestamps) && $taskIdRecord->waktu) {
+                    $timestamps[$tid] = Carbon::parse($taskIdRecord->waktu);
+                }
+            }
         }
 
-        $resep = $reg->resepObat;
-        if ($resep && $resep->isNotEmpty()) {
-            $first         = $resep->sortBy('tgl_periksa')->first();
-            $last          = $resep->sortByDesc('tgl_periksa')->first();
-            $timestamps[6] = $this->parseTimestamp($first->tgl_periksa, $first->jam);
-            $timestamps[7] = $this->parseTimestamp($last->tgl_periksa, $last->jam);
+        // 2. Second attempt: Fallback to pemeriksaan and resep if the task table has no entries for those tasks
+        if (!$timestamps[4] || !$timestamps[5]) {
+            $pemeriksaan = $reg->pemeriksaanRalan;
+            if ($pemeriksaan && $pemeriksaan->isNotEmpty()) {
+                $first         = $pemeriksaan->sortBy('tgl_periksa')->first();
+                $last          = $pemeriksaan->sortByDesc('tgl_periksa')->first();
+                if (!$timestamps[4]) {
+                    $timestamps[4] = $this->parseTimestamp($first->tgl_periksa, $first->jam_periksa);
+                }
+                if (!$timestamps[5]) {
+                    $timestamps[5] = $this->parseTimestamp($last->tgl_periksa, $last->jam_periksa);
+                }
+            }
         }
 
+        if (!$timestamps[6] || !$timestamps[7]) {
+            $resep = $reg->resepObat;
+            if ($resep && $resep->isNotEmpty()) {
+                $first         = $resep->sortBy('tgl_periksa')->first();
+                $last          = $resep->sortByDesc('tgl_periksa')->first();
+                if (!$timestamps[6]) {
+                    $timestamps[6] = $this->parseTimestamp($first->tgl_periksa, $first->jam);
+                }
+                if (!$timestamps[7]) {
+                    $timestamps[7] = $this->parseTimestamp($last->tgl_periksa, $last->jam);
+                }
+            }
+        }
+
+        // 3. Third attempt: Status-based fallback values
         if (empty($timestamps[4]) && $reg->stts == 'Sudah') {
             $timestamps[4] = $timestamps[3];
         }
@@ -893,11 +914,11 @@ class FlowAnalyticsService
         $withAnomalies = 0;
 
         $durations = [
-            'checkin_to_nurse'   => [],
-            'nurse_to_doctor'    => [],
-            'doctor_to_pharmacy' => [],
-            'pharmacy_to_done'   => [],
-            'total_time'         => [],
+            'waktu_tunggu_poli'    => [],
+            'waktu_layan_poli'     => [],
+            'waktu_tunggu_farmasi' => [],
+            'waktu_layan_farmasi'  => [],
+            'total_waktu_rs'       => [],
         ];
 
         foreach ($patientFlows as $p) {
@@ -929,11 +950,11 @@ class FlowAnalyticsService
             'in_progress'    => $inProgress,
             'with_anomalies' => $withAnomalies,
             'avg_durations'  => [
-                'checkin_to_nurse'   => ! empty($durations['checkin_to_nurse']) ? round(array_sum($durations['checkin_to_nurse']) / count($durations['checkin_to_nurse']), 1) : null,
-                'nurse_to_doctor'    => ! empty($durations['nurse_to_doctor']) ? round(array_sum($durations['nurse_to_doctor']) / count($durations['nurse_to_doctor']), 1) : null,
-                'doctor_to_pharmacy' => ! empty($durations['doctor_to_pharmacy']) ? round(array_sum($durations['doctor_to_pharmacy']) / count($durations['doctor_to_pharmacy']), 1) : null,
-                'pharmacy_to_done'   => ! empty($durations['pharmacy_to_done']) ? round(array_sum($durations['pharmacy_to_done']) / count($durations['pharmacy_to_done']), 1) : null,
-                'total_time'         => ! empty($durations['total_time']) ? round(array_sum($durations['total_time']) / count($durations['total_time']), 1) : null,
+                'waktu_tunggu_poli'    => ! empty($durations['waktu_tunggu_poli']) ? round(array_sum($durations['waktu_tunggu_poli']) / count($durations['waktu_tunggu_poli']), 1) : null,
+                'waktu_layan_poli'     => ! empty($durations['waktu_layan_poli']) ? round(array_sum($durations['waktu_layan_poli']) / count($durations['waktu_layan_poli']), 1) : null,
+                'waktu_tunggu_farmasi' => ! empty($durations['waktu_tunggu_farmasi']) ? round(array_sum($durations['waktu_tunggu_farmasi']) / count($durations['waktu_tunggu_farmasi']), 1) : null,
+                'waktu_layan_farmasi'  => ! empty($durations['waktu_layan_farmasi']) ? round(array_sum($durations['waktu_layan_farmasi']) / count($durations['waktu_layan_farmasi']), 1) : null,
+                'total_waktu_rs'       => ! empty($durations['total_waktu_rs']) ? round(array_sum($durations['total_waktu_rs']) / count($durations['total_waktu_rs']), 1) : null,
             ],
         ];
     }
@@ -942,7 +963,7 @@ class FlowAnalyticsService
     {
         $count = count($values);
         if ($count === 0) {
-            return ['count' => 0, 'median' => null];
+            return ['count' => 0, 'median' => null, 'min' => null, 'max' => null, 'avg' => null, 'p90' => null];
         }
 
         sort($values);
@@ -951,9 +972,19 @@ class FlowAnalyticsService
             ? $values[$mid]
             : (($values[$mid] + $values[$mid + 1]) / 2);
 
+        $avg = array_sum($values) / $count;
+
+        // P90: 90th percentile
+        $p90Index = (int) ceil(0.9 * $count) - 1;
+        $p90      = $values[min($p90Index, $count - 1)];
+
         return [
             'count'  => $count,
             'median' => round($median, 1),
+            'min'    => round($values[0], 1),
+            'max'    => round($values[$count - 1], 1),
+            'avg'    => round($avg, 1),
+            'p90'    => round($p90, 1),
         ];
     }
 
@@ -1007,19 +1038,21 @@ class FlowAnalyticsService
             $doctor = $p['nm_dokter'];
             if (! isset($byDoctor[$doctor])) {
                 $byDoctor[$doctor] = [
-                    'patient_count'    => 0,
-                    'waktu_layan_poli' => [],
-                    'total_waktu_rs'   => [],
+                    'patient_count'        => 0,
+                    'waktu_tunggu_poli'    => [],
+                    'waktu_layan_poli'     => [],
+                    'waktu_tunggu_farmasi' => [],
+                    'waktu_layan_farmasi'  => [],
+                    'total_waktu_rs'       => [],
                 ];
             }
 
             if ($p['status'] !== 'Tidak Hadir / Batal') {
                 $byDoctor[$doctor]['patient_count']++;
-                if (isset($p['durations']['waktu_layan_poli']) && $p['durations']['waktu_layan_poli'] !== null) {
-                    $byDoctor[$doctor]['waktu_layan_poli'][] = $p['durations']['waktu_layan_poli'];
-                }
-                if (isset($p['durations']['total_waktu_rs']) && $p['durations']['total_waktu_rs'] !== null) {
-                    $byDoctor[$doctor]['total_waktu_rs'][] = $p['durations']['total_waktu_rs'];
+                foreach (['waktu_tunggu_poli', 'waktu_layan_poli', 'waktu_tunggu_farmasi', 'waktu_layan_farmasi', 'total_waktu_rs'] as $metric) {
+                    if (isset($p['durations'][$metric]) && $p['durations'][$metric] !== null) {
+                        $byDoctor[$doctor][$metric][] = $p['durations'][$metric];
+                    }
                 }
             }
         }
@@ -1027,9 +1060,12 @@ class FlowAnalyticsService
         $aggregated = [];
         foreach ($byDoctor as $doctor => $data) {
             $aggregated[$doctor] = [
-                'patient_count'    => $data['patient_count'],
-                'waktu_layan_poli' => $this->computeStats($data['waktu_layan_poli']),
-                'total_waktu_rs'   => $this->computeStats($data['total_waktu_rs']),
+                'patient_count'        => $data['patient_count'],
+                'waktu_tunggu_poli'    => $this->computeStats($data['waktu_tunggu_poli']),
+                'waktu_layan_poli'     => $this->computeStats($data['waktu_layan_poli']),
+                'waktu_tunggu_farmasi' => $this->computeStats($data['waktu_tunggu_farmasi']),
+                'waktu_layan_farmasi'  => $this->computeStats($data['waktu_layan_farmasi']),
+                'total_waktu_rs'       => $this->computeStats($data['total_waktu_rs']),
             ];
         }
 
@@ -1039,10 +1075,10 @@ class FlowAnalyticsService
     private function getTimeDistribution(array $patientFlows): array
     {
         $dist = [
-            'checkin_to_nurse'   => [],
-            'nurse_to_doctor'    => [],
-            'doctor_to_pharmacy' => [],
-            'pharmacy_to_done'   => [],
+            'waktu_tunggu_poli'    => [],
+            'waktu_layan_poli'     => [],
+            'waktu_tunggu_farmasi' => [],
+            'waktu_layan_farmasi'  => [],
         ];
         foreach ($patientFlows as $p) {
             foreach (array_keys($dist) as $k) {
