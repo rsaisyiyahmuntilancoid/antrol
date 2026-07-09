@@ -52,6 +52,35 @@ class FlowAnalyticsController extends Controller
     }
 
     /**
+     * Display printable report layout
+     */
+    public function print(Request $request)
+    {
+        $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
+        $dateTo = $request->get('date_to', $dateFrom);
+
+        try {
+            $carbonFrom = Carbon::parse($dateFrom);
+            $carbonTo = Carbon::parse($dateTo);
+
+            if ($carbonFrom->diffInDays($carbonTo) > 31) {
+                $dateTo = $carbonFrom->copy()->addDays(31)->format('Y-m-d');
+            }
+        } catch (\Exception $e) {
+            $dateFrom = Carbon::today()->format('Y-m-d');
+            $dateTo = $dateFrom;
+        }
+
+        $analytics = $this->flowAnalyticsService->getAnalyticsData($dateFrom, $dateTo);
+
+        return view('monitoring.print', [
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'analytics' => $analytics
+        ]);
+    }
+
+    /**
      * Get flow analytics data via AJAX
      */
     public function getAnalyticsData(Request $request): JsonResponse

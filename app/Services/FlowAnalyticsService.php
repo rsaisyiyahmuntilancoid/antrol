@@ -2,8 +2,8 @@
 namespace App\Services;
 
 use App\Models\BpjsPatientVisit;
-use App\Models\RegPeriksa;
 use App\Models\MapingDokterDpjpvclaim;
+use App\Models\RegPeriksa;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -35,10 +35,10 @@ class FlowAnalyticsService
 
     private function diffMinutes(?Carbon $t1, ?Carbon $t2): ?float
     {
-        if (!$t1 || !$t2) {
+        if (! $t1 || ! $t2) {
             return null;
         }
-        return (float) $t2->diffInMinutes($t1, false);
+        return round($t1->diffInSeconds($t2, false) / 60.0, 2);
     }
 
     public function computeDurationsFromTaskData(?array $taskData): array
@@ -50,20 +50,15 @@ class FlowAnalyticsService
             6 => null,
             7 => null,
         ];
-        
+
         foreach (($taskData ?? []) as $t) {
-            $tid = (int)$t['taskid'];
-            if (isset($t['waktu']) && isset($tasks[$tid])) {
-                $tasks[$tid] = $this->parseTaskWaktu($t['waktu']);
+            $tid = (int) $t['taskid'];
+            if (isset($t['wakturs']) && array_key_exists($tid, $tasks)) {
+                $tasks[$tid] = $this->parseTaskWaktu($t['wakturs']);
             }
         }
 
         $durations = [
-            'checkin_to_nurse'   => $this->diffMinutes($tasks[3], $tasks[4]),
-            'nurse_to_doctor'    => $this->diffMinutes($tasks[4], $tasks[5]),
-            'doctor_to_pharmacy' => $this->diffMinutes($tasks[5], $tasks[6]),
-            'pharmacy_to_done'   => $this->diffMinutes($tasks[6], $tasks[7]),
-            'total_time'         => $this->diffMinutes($tasks[3], $tasks[7] ?? $tasks[5] ?? null),
             'waktu_tunggu_poli'    => $this->diffMinutes($tasks[3], $tasks[4]),
             'waktu_layan_poli'     => $this->diffMinutes($tasks[4], $tasks[5]),
             'waktu_tunggu_farmasi' => $this->diffMinutes($tasks[5], $tasks[6]),
@@ -76,32 +71,32 @@ class FlowAnalyticsService
 
     public function determineStatusFromTaskData(?array $taskData): string
     {
-        if (!$taskData) {
+        if (! $taskData) {
             return 'Belum Terkirim';
         }
-        
+
         $taskIds = array_column($taskData, 'taskid');
         $taskIds = array_map('intval', $taskIds);
         $taskIds = array_unique($taskIds);
         sort($taskIds);
-        
+
         if (in_array(8, $taskIds)) {
             return 'Tidak Hadir / Batal';
         }
         if (in_array(99, $taskIds)) {
             return 'Tidak Terdaftar';
         }
-        
+
         $monitoredTasks = array_values(array_intersect($taskIds, [3, 4, 5, 6, 7]));
-        
+
         if (empty($monitoredTasks)) {
             $otherTasks = array_values(array_intersect($taskIds, [1, 2]));
-            if (!empty($otherTasks)) {
+            if (! empty($otherTasks)) {
                 return 'Task ' . implode(',', $otherTasks);
             }
             return 'Belum Lengkap';
         }
-        
+
         if ($monitoredTasks === [3, 4, 5, 6, 7]) {
             return 'Lengkap (3,4,5,6,7)';
         }
@@ -117,33 +112,33 @@ class FlowAnalyticsService
         if ($monitoredTasks === [3]) {
             return 'Task 3';
         }
-        
+
         return 'Task ' . implode(',', $monitoredTasks);
     }
 
     public function syncTodayIfEmpty(string $date): array
     {
-        $kdPj = config('mobilejkn.kd_pj', 'BPJ');
-        $excludePoli = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
+        $kdPj             = config('mobilejkn.kd_pj', 'BPJ');
+        $excludePoli      = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
         $excludePoliArray = array_filter(explode(',', $excludePoli));
 
         $query = RegPeriksa::with(['referensiMobilejknBpjs'])
             ->where('tgl_registrasi', $date)
             ->where('kd_pj', $kdPj);
 
-        if (!empty($excludePoliArray)) {
+        if (! empty($excludePoliArray)) {
             $query->whereNotIn('kd_poli', $excludePoliArray);
         }
 
         $registrations = $query->get();
-        $total = $registrations->count();
-        $synced = 0;
+        $total         = $registrations->count();
+        $synced        = 0;
 
         $startTime = microtime(true);
 
         foreach ($registrations as $reg) {
             $kodebooking = $reg->referensiMobilejknBpjs?->nobooking ?? $reg->no_rawat;
-            if (!$kodebooking) {
+            if (! $kodebooking) {
                 continue;
             }
 
@@ -165,26 +160,26 @@ class FlowAnalyticsService
 
     public function syncDatePatientsDirectly(string $date): array
     {
-        $kdPj = config('mobilejkn.kd_pj', 'BPJ');
-        $excludePoli = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
+        $kdPj             = config('mobilejkn.kd_pj', 'BPJ');
+        $excludePoli      = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
         $excludePoliArray = array_filter(explode(',', $excludePoli));
 
         $query = RegPeriksa::with(['referensiMobilejknBpjs'])
             ->where('tgl_registrasi', $date)
             ->where('kd_pj', $kdPj);
 
-        if (!empty($excludePoliArray)) {
+        if (! empty($excludePoliArray)) {
             $query->whereNotIn('kd_poli', $excludePoliArray);
         }
 
         $registrations = $query->get();
-        $total = $registrations->count();
-        $synced = 0;
-        $failed = 0;
+        $total         = $registrations->count();
+        $synced        = 0;
+        $failed        = 0;
 
         foreach ($registrations as $reg) {
             $kodebooking = $reg->referensiMobilejknBpjs?->nobooking ?? $reg->no_rawat;
-            if (!$kodebooking) {
+            if (! $kodebooking) {
                 continue;
             }
 
@@ -210,15 +205,15 @@ class FlowAnalyticsService
         $dateToObj   = Carbon::parse($dateTo);
         $todayStr    = Carbon::now()->toDateString();
 
-        $kdPj = config('mobilejkn.kd_pj', 'BPJ');
-        $excludePoli = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
+        $kdPj             = config('mobilejkn.kd_pj', 'BPJ');
+        $excludePoli      = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
         $excludePoliArray = array_filter(explode(',', $excludePoli));
         $excludePoliArray = array_unique(array_merge($excludePoliArray, ['HD', 'IGD', 'IGDK']));
 
         // Group & count registrations by date in SIMRS (filtered by BPJ and excluding polikliniks)
         $simrsQuery = RegPeriksa::whereBetween('tgl_registrasi', [$dateFrom, $dateTo])
             ->where('kd_pj', $kdPj);
-        if (!empty($excludePoliArray)) {
+        if (! empty($excludePoliArray)) {
             $simrsQuery->whereNotIn('kd_poli', $excludePoliArray);
         }
         $simrsRegistrationsByDate = $simrsQuery->groupBy('tgl_registrasi')
@@ -240,14 +235,11 @@ class FlowAnalyticsService
             'regPeriksa.poliklinik',
             'regPeriksa.dokter',
             'regPeriksa.referensiMobilejknBpjs',
+            'regPeriksa.referensiMobilejknBpjsTaskid',
             'regPeriksa.pemeriksaanRalan',
-            'regPeriksa.resepObat'
+            'regPeriksa.resepObat',
         ])
             ->whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
-
-        if (!empty($excludePoliArray)) {
-            $visitsQuery->whereNotIn('kodepoli', $excludePoliArray);
-        }
 
         $visits = $visitsQuery->orderBy('tanggalperiksa')
             ->orderBy('id')
@@ -259,23 +251,23 @@ class FlowAnalyticsService
         $simrsRegsQuery = RegPeriksa::with(['referensiMobilejknBpjs', 'dokter', 'poliklinik'])
             ->whereBetween('tgl_registrasi', [$dateFrom, $dateTo])
             ->where('kd_pj', $kdPj);
-        if (!empty($excludePoliArray)) {
+        if (! empty($excludePoliArray)) {
             $simrsRegsQuery->whereNotIn('kd_poli', $excludePoliArray);
         }
         $simrsRegs = $simrsRegsQuery->get();
 
         $missingRegs = [];
         foreach ($simrsRegs as $reg) {
-            if (!$visitsByNoRawat->has($reg->no_rawat)) {
+            if (! $visitsByNoRawat->has($reg->no_rawat)) {
                 $missingRegs[] = $reg;
             }
         }
 
-        if (!empty($missingRegs)) {
+        if (! empty($missingRegs)) {
             $syncCount = 0;
             foreach ($missingRegs as $reg) {
                 $kodebooking = $reg->referensiMobilejknBpjs?->nobooking ?? $reg->no_rawat;
-                if (!$kodebooking) {
+                if (! $kodebooking) {
                     continue;
                 }
 
@@ -288,15 +280,15 @@ class FlowAnalyticsService
                     BpjsPatientVisit::updateOrCreate(
                         ['kodebooking' => $kodebooking],
                         [
-                            'no_rawat' => $reg->no_rawat,
+                            'no_rawat'       => $reg->no_rawat,
                             'tanggalperiksa' => $reg->tgl_registrasi,
-                            'norm' => $reg->no_rkm_medis,
-                            'kodepoli' => $reg->kd_poli,
-                            'namapoli' => $reg->poliklinik?->nm_poli,
-                            'kodedokter' => $reg->dokter?->kd_dokter,
-                            'namadokter' => $reg->dokter?->nm_dokter,
-                            'task_data' => [],
-                            'last_sync' => null,
+                            'norm'           => $reg->no_rkm_medis,
+                            'kodepoli'       => $reg->kd_poli,
+                            'namapoli'       => $reg->poliklinik?->nm_poli,
+                            'kodedokter'     => $reg->dokter?->kd_dokter,
+                            'namadokter'     => $reg->dokter?->nm_dokter,
+                            'task_data'      => [],
+                            'last_sync'      => null,
                         ]
                     );
                 }
@@ -309,13 +301,9 @@ class FlowAnalyticsService
                 'regPeriksa.dokter',
                 'regPeriksa.referensiMobilejknBpjs',
                 'regPeriksa.pemeriksaanRalan',
-                'regPeriksa.resepObat'
+                'regPeriksa.resepObat',
             ])
                 ->whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
-
-            if (!empty($excludePoliArray)) {
-                $visitsQuery->whereNotIn('kodepoli', $excludePoliArray);
-            }
 
             $visits = $visitsQuery->orderBy('tanggalperiksa')
                 ->orderBy('id')
@@ -326,40 +314,37 @@ class FlowAnalyticsService
         $doctorMappings = MapingDokterDpjpvclaim::with('dokter')->get()->keyBy('kd_dokter_bpjs');
 
         // 3. Get visits count grouped by date
-        $visitsCountQuery = BpjsPatientVisit::whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
-        if (!empty($excludePoliArray)) {
-            $visitsCountQuery->whereNotIn('kodepoli', $excludePoliArray);
-        }
+        $visitsCountQuery  = BpjsPatientVisit::whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
         $visitsCountByDate = $visitsCountQuery->groupBy('tanggalperiksa')
             ->selectRaw('tanggalperiksa, count(*) as count')
             ->pluck('count', 'tanggalperiksa')
             ->toArray();
 
-        $daysInRange = $dateFromObj->diffInDays($dateToObj) + 1;
+        $daysInRange  = $dateFromObj->diffInDays($dateToObj) + 1;
         $missingDates = array_keys(array_diff_key($simrsRegistrationsByDate, $visitsCountByDate));
 
         // 4. Build flows from JKN task data
         $patientFlows = [];
         foreach ($visits as $visit) {
             /** @var BpjsPatientVisit $visit */
-            $realTimestamps = $visit->regPeriksa 
-                ? $this->getRealTimestamps($visit->regPeriksa) 
+            $realTimestamps = $visit->regPeriksa
+                ? $this->getRealTimestamps($visit->regPeriksa)
                 : [1 => null, 2 => null, 3 => null, 4 => null, 5 => null, 6 => null, 7 => null];
 
-            $taskData = $visit->task_data;
+            $taskData    = $visit->task_data;
             $hasBpjsData = ($taskData !== null && count($taskData) > 0);
-            $syncStatus = $hasBpjsData ? 'synced' : 'pending';
+            $syncStatus  = $hasBpjsData ? 'synced' : 'pending';
 
             if ($hasBpjsData) {
                 $durations = $this->computeDurationsFromTaskData($taskData);
-                $status = $this->determineStatusFromTaskData($taskData);
+                $status    = $this->determineStatusFromTaskData($taskData);
             } else {
                 $durations = [
-                    'checkin_to_nurse'   => null,
-                    'nurse_to_doctor'    => null,
-                    'doctor_to_pharmacy' => null,
-                    'pharmacy_to_done'   => null,
-                    'total_time'         => null,
+                    'checkin_to_nurse'     => null,
+                    'nurse_to_doctor'      => null,
+                    'doctor_to_pharmacy'   => null,
+                    'pharmacy_to_done'     => null,
+                    'total_time'           => null,
                     'waktu_tunggu_poli'    => null,
                     'waktu_layan_poli'     => null,
                     'waktu_tunggu_farmasi' => null,
@@ -370,8 +355,8 @@ class FlowAnalyticsService
             }
 
             $bpjsTimestamps = $this->getBpjsTimestamps($visit);
-            $comparison = $this->compareBpjsAndSimrs($bpjsTimestamps, $realTimestamps);
-            $anomalies = $this->detectPatientAnomalies($realTimestamps, $bpjsTimestamps, $durations);
+            $comparison     = $this->compareBpjsAndSimrs($bpjsTimestamps, $realTimestamps);
+            $anomalies      = $this->detectPatientAnomalies($realTimestamps, $bpjsTimestamps, $durations);
 
             // Resolve doctor name using SIMRS first, then mapping table, then BPJS namadokter
             $docName = 'N/A';
@@ -389,8 +374,8 @@ class FlowAnalyticsService
                 'nm_pasien'       => $visit->regPeriksa?->pasien?->nm_pasien ?? 'N/A',
                 'nm_poli'         => $visit->namapoli ?? ($visit->regPeriksa?->poliklinik?->nm_poli ?? 'N/A'),
                 'nm_dokter'       => $docName,
-                'jam_reg'         => $visit->regPeriksa?->jam_reg ? ($visit->regPeriksa->jam_reg instanceof \DateTimeInterface ? $visit->regPeriksa->jam_reg->format('H:i') : substr((string) $visit->regPeriksa->jam_reg, 0, 5)) : '00:00',
-                'tgl_registrasi'  => $visit->tanggalperiksa ? ($visit->tanggalperiksa instanceof Carbon ? $visit->tanggalperiksa->toDateString() : (string)$visit->tanggalperiksa) : '',
+                'jam_reg'         => $visit->regPeriksa?->jam_reg ? ($visit->regPeriksa->jam_reg instanceof \DateTimeInterface  ? $visit->regPeriksa->jam_reg->format('H:i') : substr((string) $visit->regPeriksa->jam_reg, 0, 5)) : '00:00',
+                'tgl_registrasi'  => $visit->tanggalperiksa ? ($visit->tanggalperiksa instanceof Carbon ? $visit->tanggalperiksa->toDateString() : (string) $visit->tanggalperiksa) : '',
                 'has_booking'     => (strpos($visit->kodebooking, '/') === false),
                 'kode_booking'    => $visit->kodebooking,
                 'timestamps_real' => array_map(fn($c) => $c?->toDateTimeString(), $realTimestamps),
@@ -407,11 +392,11 @@ class FlowAnalyticsService
         }
 
         // Aggregate statistics using the computed JKN flows
-        $stats = $this->calculateStatistics($patientFlows);
+        $stats       = $this->calculateStatistics($patientFlows);
         $clinicStats = $this->getClinicStatistics($patientFlows);
         $doctorStats = $this->getDoctorStatistics($patientFlows);
-        $timeDist = $this->getTimeDistribution($patientFlows);
-        $anomalies = $this->aggregateAnomalies($patientFlows);
+        $timeDist    = $this->getTimeDistribution($patientFlows);
+        $anomalies   = $this->aggregateAnomalies($patientFlows);
         $globalStats = $this->calculateGlobalStats($patientFlows);
 
         // Count cancelled patients
@@ -484,6 +469,7 @@ class FlowAnalyticsService
         try {
             $reg = RegPeriksa::with([
                 'referensiMobilejknBpjs',
+                'referensiMobilejknBpjsTaskid',
                 'pasien',
                 'poliklinik',
                 'dokter',
@@ -525,23 +511,23 @@ class FlowAnalyticsService
                 ]);
             } else {
                 $visitData = array_merge($visitData, [
-                    'nomorkartu'       => $reg->pasien->no_peserta ?? null,
-                    'nik'              => $reg->pasien->no_ktp ?? null,
-                    'nohp'             => $reg->pasien->no_tlp ?? null,
-                    'norm'             => $reg->no_rkm_medis,
-                    'kodepoli'         => $reg->kd_poli,
-                    'namapoli'         => $reg->poliklinik->nm_poli ?? null,
-                    'kodedokter'       => $reg->kd_dokter,
-                    'namadokter'       => $reg->dokter->nm_dokter ?? null,
-                    'nomorantrean'     => $reg->no_reg,
-                    'angkaantrean'     => intval($reg->no_reg),
+                    'nomorkartu'   => $reg->pasien->no_peserta ?? null,
+                    'nik'          => $reg->pasien->no_ktp ?? null,
+                    'nohp'         => $reg->pasien->no_tlp ?? null,
+                    'norm'         => $reg->no_rkm_medis,
+                    'kodepoli'     => $reg->kd_poli,
+                    'namapoli'     => $reg->poliklinik->nm_poli ?? null,
+                    'kodedokter'   => $reg->kd_dokter,
+                    'namadokter'   => $reg->dokter->nm_dokter ?? null,
+                    'nomorantrean' => $reg->no_reg,
+                    'angkaantrean' => intval($reg->no_reg),
                 ]);
             }
 
             if (! $listTaskResult['success']) {
                 return [
                     'success' => false,
-                    'message' => $listTaskResult['message'] ?? $listTaskResult['error'] ?? 'Gagal mengambil data dari BPJS'
+                    'message' => $listTaskResult['message'] ?? $listTaskResult['error'] ?? 'Gagal mengambil data dari BPJS',
                 ];
             }
 
@@ -589,7 +575,7 @@ class FlowAnalyticsService
 
     private function parseTaskWaktu($waktu): ?Carbon
     {
-        if (!$waktu) {
+        if (! $waktu) {
             return null;
         }
 
@@ -598,7 +584,7 @@ class FlowAnalyticsService
         }
 
         if (is_numeric($waktu)) {
-            $val = (int)$waktu;
+            $val = (int) $waktu;
             if ($val > 0) {
                 if ($val < 9999999999) {
                     $val = $val * 1000;
@@ -632,8 +618,8 @@ class FlowAnalyticsService
         }
         foreach ($taskData as $task) {
             $taskId = $task['taskid'] ?? null;
-            $waktu  = $task['waktu'] ?? null;
-            if ($taskId && $waktu && isset($timestamps[$taskId])) {
+            $waktu  = $task['wakturs'] ?? null;
+            if ($taskId && $waktu && array_key_exists($taskId, $timestamps)) {
                 $timestamps[$taskId] = $this->parseTaskWaktu($waktu);
             }
         }
@@ -680,7 +666,7 @@ class FlowAnalyticsService
         ];
         $timestamps[1] = $reg->tgl_registrasi ? $this->parseTimestamp($reg->tgl_registrasi, $reg->jam_reg) : null;
         $timestamps[2] = $timestamps[1];
-        
+
         // If registered with Mobile JKN, use check-in (validasi) time as Task 3
         if ($reg->referensiMobilejknBpjs && $reg->referensiMobilejknBpjs->validasi) {
             $timestamps[3] = Carbon::parse($reg->referensiMobilejknBpjs->validasi);
@@ -688,22 +674,46 @@ class FlowAnalyticsService
             $timestamps[3] = $timestamps[1];
         }
 
-        $pemeriksaan = $reg->pemeriksaanRalan;
-        if ($pemeriksaan && $pemeriksaan->isNotEmpty()) {
-            $first         = $pemeriksaan->sortBy('tgl_periksa')->first();
-            $last          = $pemeriksaan->sortByDesc('tgl_periksa')->first();
-            $timestamps[4] = $this->parseTimestamp($first->tgl_periksa, $first->jam_periksa);
-            $timestamps[5] = $this->parseTimestamp($last->tgl_periksa, $last->jam_periksa);
+        // 1. First attempt: get from referensiMobilejknBpjsTaskid table
+        if ($reg->referensiMobilejknBpjsTaskid && $reg->referensiMobilejknBpjsTaskid->isNotEmpty()) {
+            foreach ($reg->referensiMobilejknBpjsTaskid as $taskIdRecord) {
+                $tid = (int)$taskIdRecord->taskid;
+                if (array_key_exists($tid, $timestamps) && $taskIdRecord->waktu) {
+                    $timestamps[$tid] = Carbon::parse($taskIdRecord->waktu);
+                }
+            }
         }
 
-        $resep = $reg->resepObat;
-        if ($resep && $resep->isNotEmpty()) {
-            $first         = $resep->sortBy('tgl_periksa')->first();
-            $last          = $resep->sortByDesc('tgl_periksa')->first();
-            $timestamps[6] = $this->parseTimestamp($first->tgl_periksa, $first->jam);
-            $timestamps[7] = $this->parseTimestamp($last->tgl_periksa, $last->jam);
+        // 2. Second attempt: Fallback to pemeriksaan and resep if the task table has no entries for those tasks
+        if (!$timestamps[4] || !$timestamps[5]) {
+            $pemeriksaan = $reg->pemeriksaanRalan;
+            if ($pemeriksaan && $pemeriksaan->isNotEmpty()) {
+                $first         = $pemeriksaan->sortBy('tgl_periksa')->first();
+                $last          = $pemeriksaan->sortByDesc('tgl_periksa')->first();
+                if (!$timestamps[4]) {
+                    $timestamps[4] = $this->parseTimestamp($first->tgl_periksa, $first->jam_periksa);
+                }
+                if (!$timestamps[5]) {
+                    $timestamps[5] = $this->parseTimestamp($last->tgl_periksa, $last->jam_periksa);
+                }
+            }
         }
 
+        if (!$timestamps[6] || !$timestamps[7]) {
+            $resep = $reg->resepObat;
+            if ($resep && $resep->isNotEmpty()) {
+                $first         = $resep->sortBy('tgl_periksa')->first();
+                $last          = $resep->sortByDesc('tgl_periksa')->first();
+                if (!$timestamps[6]) {
+                    $timestamps[6] = $this->parseTimestamp($first->tgl_periksa, $first->jam);
+                }
+                if (!$timestamps[7]) {
+                    $timestamps[7] = $this->parseTimestamp($last->tgl_periksa, $last->jam);
+                }
+            }
+        }
+
+        // 3. Third attempt: Status-based fallback values
         if (empty($timestamps[4]) && $reg->stts == 'Sudah') {
             $timestamps[4] = $timestamps[3];
         }
@@ -727,7 +737,11 @@ class FlowAnalyticsService
         }
 
         $dateStr = $date instanceof Carbon ? $date->toDateString() : (string) $date;
-        $timeStr = $time ? (string) $time : '00:00:00';
+        if ($time instanceof \DateTimeInterface) {
+            $timeStr = $time->format('H:i:s');
+        } else {
+            $timeStr = $time ? (string) $time : '00:00:00';
+        }
         $dateStr = explode(' ', $dateStr)[0];
 
         try {
@@ -774,18 +788,18 @@ class FlowAnalyticsService
                 $present[] = $tid;
             }
         }
-        
+
         if ($stts == 'Batal') {
             return 'Tidak Hadir / Batal';
         }
-        
+
         if (empty($present)) {
             if ($stts == 'Sudah') {
                 return 'Lengkap (3,4,5,6,7)';
             }
             return 'Belum Terkirim';
         }
-        
+
         if ($present === [3, 4, 5, 6, 7]) {
             return 'Lengkap (3,4,5,6,7)';
         }
@@ -801,19 +815,19 @@ class FlowAnalyticsService
         if ($present === [3]) {
             return 'Task 3';
         }
-        
+
         return 'Task ' . implode(',', $present);
     }
 
     private function aggregateAnomalies(array $patients): array
     {
         $counts = [
-            'total_anomalies' => 0,
+            'total_anomalies'  => 0,
             'timestamp_buatan' => [],
-            'durasi_negatif' => [],
+            'durasi_negatif'   => [],
             'farmasi_10_menit' => [],
-            'outlier_durasi' => [],
-            'belum_terkirim' => [],
+            'outlier_durasi'   => [],
+            'belum_terkirim'   => [],
         ];
 
         foreach ($patients as $p) {
@@ -822,9 +836,9 @@ class FlowAnalyticsService
                 foreach ($p['anomalies'] as $type) {
                     if (isset($counts[$type])) {
                         $counts[$type][] = [
-                            'no_rawat' => $p['no_rawat'],
+                            'no_rawat'  => $p['no_rawat'],
                             'nm_pasien' => $p['nm_pasien'],
-                            'nm_poli' => $p['nm_poli'],
+                            'nm_poli'   => $p['nm_poli'],
                         ];
                     }
                 }
@@ -900,11 +914,11 @@ class FlowAnalyticsService
         $withAnomalies = 0;
 
         $durations = [
-            'checkin_to_nurse'   => [],
-            'nurse_to_doctor'    => [],
-            'doctor_to_pharmacy' => [],
-            'pharmacy_to_done'   => [],
-            'total_time'         => [],
+            'waktu_tunggu_poli'    => [],
+            'waktu_layan_poli'     => [],
+            'waktu_tunggu_farmasi' => [],
+            'waktu_layan_farmasi'  => [],
+            'total_waktu_rs'       => [],
         ];
 
         foreach ($patientFlows as $p) {
@@ -936,11 +950,11 @@ class FlowAnalyticsService
             'in_progress'    => $inProgress,
             'with_anomalies' => $withAnomalies,
             'avg_durations'  => [
-                'checkin_to_nurse'   => ! empty($durations['checkin_to_nurse']) ? round(array_sum($durations['checkin_to_nurse']) / count($durations['checkin_to_nurse']), 1) : null,
-                'nurse_to_doctor'    => ! empty($durations['nurse_to_doctor']) ? round(array_sum($durations['nurse_to_doctor']) / count($durations['nurse_to_doctor']), 1) : null,
-                'doctor_to_pharmacy' => ! empty($durations['doctor_to_pharmacy']) ? round(array_sum($durations['doctor_to_pharmacy']) / count($durations['doctor_to_pharmacy']), 1) : null,
-                'pharmacy_to_done'   => ! empty($durations['pharmacy_to_done']) ? round(array_sum($durations['pharmacy_to_done']) / count($durations['pharmacy_to_done']), 1) : null,
-                'total_time'         => ! empty($durations['total_time']) ? round(array_sum($durations['total_time']) / count($durations['total_time']), 1) : null,
+                'waktu_tunggu_poli'    => ! empty($durations['waktu_tunggu_poli']) ? round(array_sum($durations['waktu_tunggu_poli']) / count($durations['waktu_tunggu_poli']), 1) : null,
+                'waktu_layan_poli'     => ! empty($durations['waktu_layan_poli']) ? round(array_sum($durations['waktu_layan_poli']) / count($durations['waktu_layan_poli']), 1) : null,
+                'waktu_tunggu_farmasi' => ! empty($durations['waktu_tunggu_farmasi']) ? round(array_sum($durations['waktu_tunggu_farmasi']) / count($durations['waktu_tunggu_farmasi']), 1) : null,
+                'waktu_layan_farmasi'  => ! empty($durations['waktu_layan_farmasi']) ? round(array_sum($durations['waktu_layan_farmasi']) / count($durations['waktu_layan_farmasi']), 1) : null,
+                'total_waktu_rs'       => ! empty($durations['total_waktu_rs']) ? round(array_sum($durations['total_waktu_rs']) / count($durations['total_waktu_rs']), 1) : null,
             ],
         ];
     }
@@ -949,18 +963,28 @@ class FlowAnalyticsService
     {
         $count = count($values);
         if ($count === 0) {
-            return ['count' => 0, 'median' => null];
+            return ['count' => 0, 'median' => null, 'min' => null, 'max' => null, 'avg' => null, 'p90' => null];
         }
 
         sort($values);
-        $mid = floor(($count - 1) / 2);
+        $mid    = floor(($count - 1) / 2);
         $median = $count % 2
             ? $values[$mid]
             : (($values[$mid] + $values[$mid + 1]) / 2);
 
+        $avg = array_sum($values) / $count;
+
+        // P90: 90th percentile
+        $p90Index = (int) ceil(0.9 * $count) - 1;
+        $p90      = $values[min($p90Index, $count - 1)];
+
         return [
             'count'  => $count,
             'median' => round($median, 1),
+            'min'    => round($values[0], 1),
+            'max'    => round($values[$count - 1], 1),
+            'avg'    => round($avg, 1),
+            'p90'    => round($p90, 1),
         ];
     }
 
@@ -1014,19 +1038,21 @@ class FlowAnalyticsService
             $doctor = $p['nm_dokter'];
             if (! isset($byDoctor[$doctor])) {
                 $byDoctor[$doctor] = [
-                    'patient_count'    => 0,
-                    'waktu_layan_poli' => [],
-                    'total_waktu_rs'   => [],
+                    'patient_count'        => 0,
+                    'waktu_tunggu_poli'    => [],
+                    'waktu_layan_poli'     => [],
+                    'waktu_tunggu_farmasi' => [],
+                    'waktu_layan_farmasi'  => [],
+                    'total_waktu_rs'       => [],
                 ];
             }
 
             if ($p['status'] !== 'Tidak Hadir / Batal') {
                 $byDoctor[$doctor]['patient_count']++;
-                if (isset($p['durations']['waktu_layan_poli']) && $p['durations']['waktu_layan_poli'] !== null) {
-                    $byDoctor[$doctor]['waktu_layan_poli'][] = $p['durations']['waktu_layan_poli'];
-                }
-                if (isset($p['durations']['total_waktu_rs']) && $p['durations']['total_waktu_rs'] !== null) {
-                    $byDoctor[$doctor]['total_waktu_rs'][] = $p['durations']['total_waktu_rs'];
+                foreach (['waktu_tunggu_poli', 'waktu_layan_poli', 'waktu_tunggu_farmasi', 'waktu_layan_farmasi', 'total_waktu_rs'] as $metric) {
+                    if (isset($p['durations'][$metric]) && $p['durations'][$metric] !== null) {
+                        $byDoctor[$doctor][$metric][] = $p['durations'][$metric];
+                    }
                 }
             }
         }
@@ -1034,9 +1060,12 @@ class FlowAnalyticsService
         $aggregated = [];
         foreach ($byDoctor as $doctor => $data) {
             $aggregated[$doctor] = [
-                'patient_count'    => $data['patient_count'],
-                'waktu_layan_poli' => $this->computeStats($data['waktu_layan_poli']),
-                'total_waktu_rs'   => $this->computeStats($data['total_waktu_rs']),
+                'patient_count'        => $data['patient_count'],
+                'waktu_tunggu_poli'    => $this->computeStats($data['waktu_tunggu_poli']),
+                'waktu_layan_poli'     => $this->computeStats($data['waktu_layan_poli']),
+                'waktu_tunggu_farmasi' => $this->computeStats($data['waktu_tunggu_farmasi']),
+                'waktu_layan_farmasi'  => $this->computeStats($data['waktu_layan_farmasi']),
+                'total_waktu_rs'       => $this->computeStats($data['total_waktu_rs']),
             ];
         }
 
@@ -1046,10 +1075,10 @@ class FlowAnalyticsService
     private function getTimeDistribution(array $patientFlows): array
     {
         $dist = [
-            'checkin_to_nurse'   => [],
-            'nurse_to_doctor'    => [],
-            'doctor_to_pharmacy' => [],
-            'pharmacy_to_done'   => [],
+            'waktu_tunggu_poli'    => [],
+            'waktu_layan_poli'     => [],
+            'waktu_tunggu_farmasi' => [],
+            'waktu_layan_farmasi'  => [],
         ];
         foreach ($patientFlows as $p) {
             foreach (array_keys($dist) as $k) {
