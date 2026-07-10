@@ -241,6 +241,10 @@ class FlowAnalyticsService
         ])
             ->whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
 
+        if (! empty($excludePoliArray)) {
+            $visitsQuery->whereNotIn('kodepoli', $excludePoliArray);
+        }
+
         $visits = $visitsQuery->orderBy('tanggalperiksa')
             ->orderBy('id')
             ->get();
@@ -300,10 +304,15 @@ class FlowAnalyticsService
                 'regPeriksa.poliklinik',
                 'regPeriksa.dokter',
                 'regPeriksa.referensiMobilejknBpjs',
+                'regPeriksa.referensiMobilejknBpjsTaskid',
                 'regPeriksa.pemeriksaanRalan',
                 'regPeriksa.resepObat',
             ])
                 ->whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
+
+            if (! empty($excludePoliArray)) {
+                $visitsQuery->whereNotIn('kodepoli', $excludePoliArray);
+            }
 
             $visits = $visitsQuery->orderBy('tanggalperiksa')
                 ->orderBy('id')
@@ -315,6 +324,9 @@ class FlowAnalyticsService
 
         // 3. Get visits count grouped by date
         $visitsCountQuery  = BpjsPatientVisit::whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
+        if (! empty($excludePoliArray)) {
+            $visitsCountQuery->whereNotIn('kodepoli', $excludePoliArray);
+        }
         $visitsCountByDate = $visitsCountQuery->groupBy('tanggalperiksa')
             ->selectRaw('tanggalperiksa, count(*) as count')
             ->pluck('count', 'tanggalperiksa')
