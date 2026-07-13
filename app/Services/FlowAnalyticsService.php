@@ -17,8 +17,7 @@ class FlowAnalyticsService
         5  => 'Mulai Waktu Tunggu Pelayanan',
         6  => 'Akhir Waktu Tunggu Pelayanan',
         7  => 'Selesai',
-        8  => 'Batal',
-        99 => 'Tidak Terdaftar',
+        99 => 'Batal',
     ];
 
     const MONITOR_TASKS          = [3, 4, 5, 6, 7];
@@ -80,11 +79,8 @@ class FlowAnalyticsService
         $taskIds = array_unique($taskIds);
         sort($taskIds);
 
-        if (in_array(8, $taskIds)) {
-            return 'Tidak Hadir / Batal';
-        }
         if (in_array(99, $taskIds)) {
-            return 'Tidak Terdaftar';
+            return 'Batal';
         }
 
         $monitoredTasks = array_values(array_intersect($taskIds, [3, 4, 5, 6, 7]));
@@ -161,7 +157,7 @@ class FlowAnalyticsService
     public function syncDatePatientsDirectly(string $date): array
     {
         $kdPj             = config('mobilejkn.kd_pj', 'BPJ');
-        $excludePoli      = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
+        $excludePoli      = config('mobilejkn.exclude_poli', 'HD, HDL,IGD,IGDK');
         $excludePoliArray = array_filter(explode(',', $excludePoli));
 
         $query = RegPeriksa::with(['referensiMobilejknBpjs'])
@@ -208,7 +204,7 @@ class FlowAnalyticsService
         $kdPj             = config('mobilejkn.kd_pj', 'BPJ');
         $excludePoli      = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
         $excludePoliArray = array_filter(explode(',', $excludePoli));
-        $excludePoliArray = array_unique(array_merge($excludePoliArray, ['HD', 'IGD', 'IGDK']));
+        $excludePoliArray = array_unique(array_merge($excludePoliArray, ['HD', 'IGD', 'IGDK', 'HDL']));
 
         // Group & count registrations by date in SIMRS (filtered by BPJ and excluding polikliniks)
         $simrsQuery = RegPeriksa::whereBetween('tgl_registrasi', [$dateFrom, $dateTo])
@@ -323,7 +319,7 @@ class FlowAnalyticsService
         $doctorMappings = MapingDokterDpjpvclaim::with('dokter')->get()->keyBy('kd_dokter_bpjs');
 
         // 3. Get visits count grouped by date
-        $visitsCountQuery  = BpjsPatientVisit::whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
+        $visitsCountQuery = BpjsPatientVisit::whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
         if (! empty($excludePoliArray)) {
             $visitsCountQuery->whereNotIn('kodepoli', $excludePoliArray);
         }
@@ -380,6 +376,25 @@ class FlowAnalyticsService
                 $docName = $visit->namadokter ?? 'N/A';
             }
 
+            $waktuBatal = null;
+            if ($hasBpjsData && is_array($taskData)) {
+                foreach ($taskData as $t) {
+                    if ((int)($t['taskid'] ?? 0) === 99 && !empty($t['wakturs'])) {
+                        $parsedBatal = $this->parseTaskWaktu($t['wakturs']);
+                        if ($parsedBatal) {
+                            $waktuBatal = $parsedBatal->toDateTimeString();
+                        }
+                        break;
+                    }
+                }
+            }
+            if (!$waktuBatal && $visit->regPeriksa) {
+                $batalRecord = \App\Models\ReferensiMobilejknBpjsBatal::where('nobooking', $visit->kodebooking)->first();
+                if ($batalRecord && $batalRecord->tanggalbatal) {
+                    $waktuBatal = $batalRecord->tanggalbatal->toDateTimeString();
+                }
+            }
+
             $patientFlows[] = [
                 'no_rawat'        => $visit->no_rawat,
                 'no_rkm_medis'    => $visit->norm ?? $visit->regPeriksa?->no_rkm_medis,
@@ -394,6 +409,7 @@ class FlowAnalyticsService
                 'timestamps_sent' => array_map(fn($c) => $c?->toDateTimeString(), $bpjsTimestamps),
                 'durations'       => $durations,
                 'status'          => $status,
+                'waktu_batal'     => $waktuBatal,
                 'anomalies'       => $anomalies,
                 'has_anomalies'   => count($anomalies) > 0,
                 'comparison'      => $comparison,
@@ -412,7 +428,7 @@ class FlowAnalyticsService
         $globalStats = $this->calculateGlobalStats($patientFlows);
 
         // Count cancelled patients
-        $batalCount = collect($patientFlows)->where('status', 'Tidak Hadir / Batal')->count();
+        $batalCount = collect($patientFlows)->where('status', 'Batal')->count();
 
         return [
             'date_from'               => $dateFrom,
@@ -499,6 +515,21 @@ class FlowAnalyticsService
             ];
 
             if ($reg->referensiMobilejknBpjs) {
+                $rawValidasi = $reg->referensiMobilejknBpjs->validasi ?? null;
+                $validasiVal = null;
+                if ($rawValidasi) {
+                    if ($rawValidasi instanceof \DateTimeInterface) {
+                        if ((int) $rawValidasi->format('Y') > 1970) {
+                            $validasiVal = $rawValidasi;
+                        }
+                    } else {
+                        $vStr = (string) $rawValidasi;
+                        if ($vStr !== '' && $vStr !== '0000-00-00 00:00:00' && strpos($vStr, '-0001') === false && strpos($vStr, '0000-') === false) {
+                            $validasiVal = $vStr;
+                        }
+                    }
+                }
+
                 $visitData = array_merge($visitData, [
                     'nomorkartu'       => $reg->referensiMobilejknBpjs->nomorkartu ?? null,
                     'nik'              => $reg->referensiMobilejknBpjs->nik ?? null,
@@ -519,7 +550,7 @@ class FlowAnalyticsService
                     'sisakuotanonjkn'  => $reg->referensiMobilejknBpjs->sisakuotanonjkn ?? null,
                     'kuotanonjkn'      => $reg->referensiMobilejknBpjs->kuotanonjkn ?? null,
                     'status'           => $reg->referensiMobilejknBpjs->status ?? null,
-                    'validasi'         => $reg->referensiMobilejknBpjs->validasi ?? null,
+                    'validasi'         => $validasiVal,
                 ]);
             } else {
                 $visitData = array_merge($visitData, [
@@ -623,7 +654,7 @@ class FlowAnalyticsService
 
     public function getBpjsTimestamps(BpjsPatientVisit $visit): array
     {
-        $timestamps = [1 => null, 2 => null, 3 => null, 4 => null, 5 => null, 6 => null, 7 => null];
+        $timestamps = [1 => null, 2 => null, 3 => null, 4 => null, 5 => null, 6 => null, 7 => null, 99 => null];
         $taskData   = $visit->task_data ?? [];
         if (! is_array($taskData)) {
             $taskData = json_decode($taskData, true) ?: [];
@@ -676,67 +707,95 @@ class FlowAnalyticsService
             6 => null,
             7 => null,
         ];
-        $timestamps[1] = $reg->tgl_registrasi ? $this->parseTimestamp($reg->tgl_registrasi, $reg->jam_reg) : null;
+
+        // Task 1 & 2: Registration
+        $timestamps[1] = ($reg->tgl_registrasi && (string)$reg->jam_reg !== '00:00:00')
+            ? $this->parseTimestamp($reg->tgl_registrasi, $reg->jam_reg)
+            : null;
         $timestamps[2] = $timestamps[1];
 
-        // If registered with Mobile JKN, use check-in (validasi) time as Task 3
+        // Task 3: Check-in / Validasi or Registration
         if ($reg->referensiMobilejknBpjs && $reg->referensiMobilejknBpjs->validasi) {
-            $timestamps[3] = Carbon::parse($reg->referensiMobilejknBpjs->validasi);
-        } else {
+            $validasiStr = (string) $reg->referensiMobilejknBpjs->validasi;
+            if ($validasiStr !== '0000-00-00 00:00:00' && $validasiStr !== '' && strpos($validasiStr, '-0001') === false && strpos($validasiStr, '0000-') === false) {
+                $parsedV = Carbon::parse($validasiStr);
+                if ($parsedV->year > 1970) {
+                    $timestamps[3] = $parsedV;
+                }
+            }
+        }
+        if (!$timestamps[3]) {
             $timestamps[3] = $timestamps[1];
         }
 
-        // 1. First attempt: get from referensiMobilejknBpjsTaskid table
+        // 1. Check referensiMobilejknBpjsTaskid table
         if ($reg->referensiMobilejknBpjsTaskid && $reg->referensiMobilejknBpjsTaskid->isNotEmpty()) {
             foreach ($reg->referensiMobilejknBpjsTaskid as $taskIdRecord) {
-                $tid = (int)$taskIdRecord->taskid;
+                $tid = (int) $taskIdRecord->taskid;
                 if (array_key_exists($tid, $timestamps) && $taskIdRecord->waktu) {
-                    $timestamps[$tid] = Carbon::parse($taskIdRecord->waktu);
+                    $waktuStr = (string) $taskIdRecord->waktu;
+                    if ($waktuStr !== '0000-00-00 00:00:00' && $waktuStr !== '') {
+                        $timestamps[$tid] = Carbon::parse($waktuStr);
+                    }
                 }
             }
         }
 
-        // 2. Second attempt: Fallback to pemeriksaan and resep if the task table has no entries for those tasks
-        if (!$timestamps[4] || !$timestamps[5]) {
-            $pemeriksaan = $reg->pemeriksaanRalan;
-            if ($pemeriksaan && $pemeriksaan->isNotEmpty()) {
-                $first         = $pemeriksaan->sortBy('tgl_periksa')->first();
-                $last          = $pemeriksaan->sortByDesc('tgl_periksa')->first();
-                if (!$timestamps[4]) {
-                    $timestamps[4] = $this->parseTimestamp($first->tgl_periksa, $first->jam_periksa);
-                }
-                if (!$timestamps[5]) {
-                    $timestamps[5] = $this->parseTimestamp($last->tgl_periksa, $last->jam_periksa);
-                }
+        // 2. Query SIMRS DB tables directly if missing in taskid table (without any fallbacks)
+        // Task 4: PemeriksaanRalan (petugas, asc)
+        if (!$timestamps[4] && $reg->pemeriksaanRalan && $reg->pemeriksaanRalan->isNotEmpty()) {
+            $pemeriksaanPetugas = $reg->pemeriksaanRalan
+                ->filter(fn($p) => !empty($p->nip) && $p->petugas && (string)$p->jam_rawat !== '00:00:00')
+                ->sortBy('jam_rawat')
+                ->first();
+            if (!$pemeriksaanPetugas) {
+                $pemeriksaanPetugas = $reg->pemeriksaanRalan
+                    ->filter(fn($p) => (string)$p->jam_rawat !== '00:00:00')
+                    ->sortBy('jam_rawat')
+                    ->first();
+            }
+            if ($pemeriksaanPetugas && $pemeriksaanPetugas->jam_rawat) {
+                $timestamps[4] = $this->parseTimestamp($pemeriksaanPetugas->tgl_perawatan, $pemeriksaanPetugas->jam_rawat);
             }
         }
 
-        if (!$timestamps[6] || !$timestamps[7]) {
-            $resep = $reg->resepObat;
-            if ($resep && $resep->isNotEmpty()) {
-                $first         = $resep->sortBy('tgl_periksa')->first();
-                $last          = $resep->sortByDesc('tgl_periksa')->first();
-                if (!$timestamps[6]) {
-                    $timestamps[6] = $this->parseTimestamp($first->tgl_periksa, $first->jam);
-                }
-                if (!$timestamps[7]) {
-                    $timestamps[7] = $this->parseTimestamp($last->tgl_periksa, $last->jam);
-                }
+        // Task 5: PemeriksaanRalan (dokter, desc)
+        if (!$timestamps[5] && $reg->pemeriksaanRalan && $reg->pemeriksaanRalan->isNotEmpty()) {
+            $pemeriksaanDokter = $reg->pemeriksaanRalan
+                ->filter(fn($p) => !empty($p->nip) && $p->dokter && (string)$p->jam_rawat !== '00:00:00')
+                ->sortByDesc('jam_rawat')
+                ->first();
+            if (!$pemeriksaanDokter) {
+                $pemeriksaanDokter = $reg->pemeriksaanRalan
+                    ->filter(fn($p) => (string)$p->jam_rawat !== '00:00:00')
+                    ->sortByDesc('jam_rawat')
+                    ->first();
+            }
+            if ($pemeriksaanDokter && $pemeriksaanDokter->jam_rawat) {
+                $timestamps[5] = $this->parseTimestamp($pemeriksaanDokter->tgl_perawatan, $pemeriksaanDokter->jam_rawat);
             }
         }
 
-        // 3. Third attempt: Status-based fallback values
-        if (empty($timestamps[4]) && $reg->stts == 'Sudah') {
-            $timestamps[4] = $timestamps[3];
+        // Task 6: ResepObat (jam, desc)
+        if (!$timestamps[6] && $reg->resepObat && $reg->resepObat->isNotEmpty()) {
+            $resep6 = $reg->resepObat
+                ->filter(fn($r) => !empty($r->jam) && (string)$r->jam !== '00:00:00')
+                ->sortByDesc('jam')
+                ->first();
+            if ($resep6 && $resep6->jam) {
+                $timestamps[6] = $this->parseTimestamp($resep6->tgl_perawatan, $resep6->jam);
+            }
         }
-        if (empty($timestamps[5]) && $reg->stts == 'Sudah') {
-            $timestamps[5] = $timestamps[4];
-        }
-        if (empty($timestamps[6]) && $reg->stts == 'Sudah') {
-            $timestamps[6] = $timestamps[5];
-        }
-        if (empty($timestamps[7]) && $reg->stts == 'Sudah') {
-            $timestamps[7] = $timestamps[6];
+
+        // Task 7: ResepObat (jam_penyerahan, desc)
+        if (!$timestamps[7] && $reg->resepObat && $reg->resepObat->isNotEmpty()) {
+            $resep7 = $reg->resepObat
+                ->filter(fn($r) => !empty($r->jam_penyerahan) && (string)$r->jam_penyerahan !== '00:00:00')
+                ->sortByDesc('jam_penyerahan')
+                ->first();
+            if ($resep7 && $resep7->jam_penyerahan) {
+                $timestamps[7] = $this->parseTimestamp($resep7->tgl_penyerahan ?: $resep7->tgl_perawatan, $resep7->jam_penyerahan);
+            }
         }
 
         return $timestamps;
@@ -802,7 +861,7 @@ class FlowAnalyticsService
         }
 
         if ($stts == 'Batal') {
-            return 'Tidak Hadir / Batal';
+            return 'Batal';
         }
 
         if (empty($present)) {
@@ -938,7 +997,7 @@ class FlowAnalyticsService
                 $completed++;
             } elseif ($p['status'] === 'Belum Terkirim') {
                 $waiting++;
-            } elseif ($p['status'] === 'Tidak Hadir / Batal' || $p['status'] === 'Tidak Terdaftar') {
+            } elseif ($p['status'] === 'Batal' || $p['status'] === 'Tidak Terdaftar') {
                 // not counted as in progress
             } else {
                 $inProgress++;
@@ -1017,7 +1076,7 @@ class FlowAnalyticsService
                 ];
             }
 
-            if ($p['status'] !== 'Tidak Hadir / Batal') {
+            if ($p['status'] !== 'Batal') {
                 $byClinic[$clinic]['patient_count']++;
                 foreach (['waktu_tunggu_poli', 'waktu_layan_poli', 'waktu_tunggu_farmasi', 'waktu_layan_farmasi', 'total_waktu_rs'] as $metric) {
                     if (isset($p['durations'][$metric]) && $p['durations'][$metric] !== null) {
@@ -1059,7 +1118,7 @@ class FlowAnalyticsService
                 ];
             }
 
-            if ($p['status'] !== 'Tidak Hadir / Batal') {
+            if ($p['status'] !== 'Batal') {
                 $byDoctor[$doctor]['patient_count']++;
                 foreach (['waktu_tunggu_poli', 'waktu_layan_poli', 'waktu_tunggu_farmasi', 'waktu_layan_farmasi', 'total_waktu_rs'] as $metric) {
                     if (isset($p['durations'][$metric]) && $p['durations'][$metric] !== null) {
