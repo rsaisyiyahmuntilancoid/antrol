@@ -14,7 +14,7 @@ class BpjsDashboardWaktutunggu extends Model
      *
      * @var string
      */
-    protected $connection = 'log';
+    protected $connection = 'mysql';
 
     /**
      * The table associated with the model.

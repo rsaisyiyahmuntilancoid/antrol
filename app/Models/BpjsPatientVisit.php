@@ -9,7 +9,7 @@ class BpjsPatientVisit extends Model
 {
     use HasFactory;
 
-    protected $connection = 'log';
+    protected $connection = 'mysql';
     protected $table = 'bpjs_patient_visits';
     protected $fillable = [
         'kodebooking',
@@ -38,14 +38,14 @@ class BpjsPatientVisit extends Model
         'task_data',
         'last_sync',
     ];
-    
+
     protected $casts = [
         'tanggalperiksa' => 'date',
         'validasi' => 'datetime',
         'task_data' => 'array',
         'last_sync' => 'datetime',
     ];
-    
+
     public function regPeriksa()
     {
         return $this->belongsTo(RegPeriksa::class, 'no_rawat', 'no_rawat');
