@@ -20,6 +20,7 @@ Route::prefix('api/mobilejkn')->group(function () {
     Route::post('/update-task-id-from-db', [MobileJknController::class, 'updateTaskIdFromDatabase']);
     Route::post('/update-task-id-now', [MobileJknController::class, 'updateTaskIdNow']);
     Route::post('/batch-update-task-ids', [MobileJknController::class, 'batchUpdateTaskIds']);
+    Route::post('/batal-antrean', [MobileJknController::class, 'batalAntrean']);
     Route::get('/task-id-logs', [MobileJknController::class, 'getTaskIdLogs']);
     Route::get('/filtered-task-id-logs', [MobileJknController::class, 'getFilteredTaskIdLogs']);
     Route::get('/get-patient-data/{reg_no}', [MobileJknController::class, 'getPatientData']);

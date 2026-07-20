@@ -719,13 +719,7 @@ class MobileJknService
             ]);
 
             $batal = '';
-            // if ($taskid == 99) {
-            //     $refBatal = ReferensiMobilejknBpjsBatal::where('nobooking', $kodebooking)->first();
-            //     $batal = $this->batalAntrean($kodebooking, $refBatal ? $refBatal->keterangan : 'Batal.');
-            // }
-            if ($taskid == 99) {
-                $batal = $this->batalAntrean($kodebooking, 'Dibatalkan Oleh Admin');
-            }
+            // batalAntrean is called explicitly by controller or command, no need to duplicate here
 
             // Make HTTP request
             $response = Http::withHeaders([
@@ -2189,36 +2183,39 @@ class MobileJknService
                 'response' => $responseData
             ]);
 
-            // If successful, save cancellation to local DB
-            // if ($response->successful()) {
-            //     try {
-            //         // Get registration data
-            //         $regPeriksa = RegPeriksa::where('no_rawat', $kodeBooking)->first();
+            // Update local DB status upon cancellation
+            try {
+                $ref = ReferensiMobilejknBpjs::where('nobooking', $kodeBooking)->first();
+                $noRawat = $ref ? $ref->no_rawat : $kodeBooking;
+                $reg = RegPeriksa::where('no_rawat', $noRawat)->first();
 
-            //         // If not found as no_rawat, try finding via BPJS referral table
-            //         if (!$regPeriksa) {
-            //             $referensi = ReferensiMobilejknBpjs::where('nobooking', $kodeBooking)->first();
-            //             if ($referensi) {
-            //                 $regPeriksa = RegPeriksa::where('no_rawat', $referensi->no_rawat)->first();
-            //             }
-            //         }
+                if ($ref) {
+                    $ref->update([
+                        'status' => 'Batal',
+                        'validasi' => now(),
+                        'statuskirim' => 'Sudah',
+                    ]);
+                }
 
-            //         // Save cancellation record if reg data found
-            //         if ($regPeriksa) {
-            //             $batalRecord = new ReferensiMobilejknBpjsBatal([
-            //                 'no_rawat' => $regPeriksa->no_rawat,
-            //                 'nobooking' => $kodeBooking,
-            //                 'status' => 'Batal',
-            //                 'keterangan' => $keterangan,
-            //                 'response' => json_encode($responseData),
-            //                 'tanggal' => now()
-            //             ]);
-            //             $batalRecord->save();
-            //         }
-            //     } catch (Throwable $e) {
-            //         Log::error('Failed to save ReferensiMobilejknBpjsBatal', ['error' => $e->getMessage(), 'kodebooking' => $kodeBooking]);
-            //     }
-            // }
+                \App\Models\ReferensiMobilejknBpjsBatal::updateOrCreate(
+                    ['nobooking' => $kodeBooking],
+                    [
+                        'no_rkm_medis' => $reg->no_rkm_medis ?? ($ref->norm ?? ''),
+                        'no_rawat_batal' => $noRawat,
+                        'nomorreferensi' => $ref->nomorreferensi ?? '',
+                        'tanggalbatal' => now(),
+                        'keterangan' => $keterangan,
+                        'statuskirim' => 'Sudah',
+                    ]
+                );
+
+                \App\Models\BpjsPatientVisit::where('kodebooking', $kodeBooking)->update([
+                    'status' => 'Batal',
+                    'last_sync' => now()
+                ]);
+            } catch (Throwable $e) {
+                Log::error('Failed to update local DB on cancellation', ['error' => $e->getMessage(), 'kodebooking' => $kodeBooking]);
+            }
 
             return [
                 'success' => $response->successful(),
@@ -2266,11 +2263,17 @@ class MobileJknService
 
             // If found in referensi table, use nobooking
             if ($referensi && $referensi->nobooking) {
-                return $this->batalAntrean($referensi->nobooking, $keterangan);
+                $result = $this->batalAntrean($referensi->nobooking, $keterangan);
+                $nowStr = (string)(now()->timestamp * 1000);
+                $this->updateTaskId($referensi->nobooking, 99, $nowStr);
+                return $result;
             }
 
             // Otherwise use no_rawat as the booking code
-            return $this->batalAntrean($noRawat, $keterangan);
+            $result = $this->batalAntrean($noRawat, $keterangan);
+            $nowStr = (string)(now()->timestamp * 1000);
+            $this->updateTaskId($noRawat, 99, $nowStr);
+            return $result;
 
         } catch (Exception $e) {
             Log::error('Error canceling appointment by no_rawat', [
