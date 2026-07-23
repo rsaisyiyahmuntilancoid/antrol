@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,8 +9,8 @@ class BpjsPatientVisit extends Model
     use HasFactory;
 
     protected $connection = 'mysql';
-    protected $table = 'bpjs_patient_visits';
-    protected $fillable = [
+    protected $table      = 'bpjs_patient_visits';
+    protected $fillable   = [
         'kodebooking',
         'no_rawat',
         'tanggalperiksa',
@@ -41,9 +40,9 @@ class BpjsPatientVisit extends Model
 
     protected $casts = [
         'tanggalperiksa' => 'date',
-        'validasi' => 'datetime',
-        'task_data' => 'array',
-        'last_sync' => 'datetime',
+        'validasi'       => 'datetime',
+        'task_data'      => 'array',
+        'last_sync'      => 'datetime',
     ];
 
     public function regPeriksa()

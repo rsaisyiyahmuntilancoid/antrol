@@ -20,6 +20,7 @@ Route::prefix('api/mobilejkn')->group(function () {
     Route::post('/update-task-id-from-db', [MobileJknController::class, 'updateTaskIdFromDatabase']);
     Route::post('/update-task-id-now', [MobileJknController::class, 'updateTaskIdNow']);
     Route::post('/batch-update-task-ids', [MobileJknController::class, 'batchUpdateTaskIds']);
+    Route::post('/batal-antrean', [MobileJknController::class, 'batalAntrean']);
     Route::get('/task-id-logs', [MobileJknController::class, 'getTaskIdLogs']);
     Route::get('/filtered-task-id-logs', [MobileJknController::class, 'getFilteredTaskIdLogs']);
     Route::get('/get-patient-data/{reg_no}', [MobileJknController::class, 'getPatientData']);
@@ -99,6 +100,8 @@ Route::prefix('api/monitoring')->group(function () {
     Route::get('/clinic/{nmPoli}', [App\Http\Controllers\FlowAnalyticsController::class, 'getClinicDetail']);
     Route::get('/patient/{noRawat}', [App\Http\Controllers\FlowAnalyticsController::class, 'getPatientDetail'])->where('noRawat', '.*');
     Route::get('/verify/{noRawat}', [App\Http\Controllers\FlowAnalyticsController::class, 'verifyBpjs'])->where('noRawat', '.*');
+    Route::get('/list-task-booking/{kodebooking?}', [App\Http\Controllers\FlowAnalyticsController::class, 'getListTaskByKodeBooking'])->where('kodebooking', '.*');
+    Route::post('/list-task-booking', [App\Http\Controllers\FlowAnalyticsController::class, 'getListTaskByKodeBooking']);
     Route::get('/bpjs-dashboard/tanggal', [App\Http\Controllers\FlowAnalyticsController::class, 'getBpjsDashboardTanggal']);
     Route::get('/bpjs-dashboard/bulan', [App\Http\Controllers\FlowAnalyticsController::class, 'getBpjsDashboardBulan']);
     Route::post('/sync-patient', [App\Http\Controllers\FlowAnalyticsController::class, 'syncPatient']);

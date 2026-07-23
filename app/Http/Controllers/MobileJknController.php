@@ -35,6 +35,10 @@ class MobileJknController extends Controller
         }
 
         try {
+            if ((int)$data['taskid'] === 99) {
+                $this->mobileJknService->batalAntrean($data['kodebooking'], 'Dibatalkan Oleh Admin');
+            }
+
             $result = $this->mobileJknService->updateTaskId(
                 $data['kodebooking'],
                 (int)$data['taskid'],
@@ -86,6 +90,10 @@ class MobileJknController extends Controller
             'taskid' => 'required|integer|in:1,2,3,4,5,6,7,99'
         ]);
 
+        if ((int)$request->taskid === 99) {
+            $this->mobileJknService->batalAntrean($request->kodebooking, 'Dibatalkan Oleh Admin');
+        }
+
         $result = $this->mobileJknService->updateTaskIdNow(
             $request->kodebooking,
             $request->taskid
@@ -112,6 +120,48 @@ class MobileJknController extends Controller
         $result = $this->mobileJknService->batchUpdateTaskIds($request->updates);
 
         return response()->json($result);
+    }
+
+    /**
+     * Cancel antrean per patient (Task 99 & Batal Antrean)
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function batalAntrean(Request $request): JsonResponse
+    {
+        $request->validate([
+            'kodebooking' => 'nullable|string',
+            'no_rawat' => 'nullable|string',
+            'keterangan' => 'nullable|string'
+        ]);
+
+        $kodeBooking = $request->input('kodebooking');
+        $noRawat = $request->input('no_rawat');
+        $keterangan = $request->input('keterangan', 'Dibatalkan Oleh Admin');
+
+        if (!$kodeBooking && !$noRawat) {
+            return response()->json(['success' => false, 'message' => 'Harap isi kodebooking atau no_rawat'], 422);
+        }
+
+        try {
+            if ($noRawat && !$kodeBooking) {
+                $result = $this->mobileJknService->batalAntreanByNoRawat($noRawat, $keterangan);
+            } else {
+                $result = $this->mobileJknService->batalAntrean($kodeBooking, $keterangan);
+                // Also send Task 99 updatewaktu
+                $nowStr = (string)(now()->timestamp * 1000);
+                $this->mobileJknService->updateTaskId($kodeBooking, 99, $nowStr);
+            }
+
+            return response()->json([
+                'success' => $result['success'] ?? true,
+                'message' => $result['metadata']['message'] ?? $result['error'] ?? 'Berhasil membatalkan antrean',
+                'data' => $result
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     /**

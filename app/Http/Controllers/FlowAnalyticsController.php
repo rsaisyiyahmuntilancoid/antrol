@@ -118,7 +118,7 @@ class FlowAnalyticsController extends Controller
             $bpjsVisit = \App\Models\BpjsPatientVisit::where('no_rawat', $noRawat)
                 ->orWhere('kodebooking', $noRawat)
                 ->first();
- 
+
             $reg = \App\Models\RegPeriksa::with([
                     'pasien',
                     'poliklinik',
@@ -129,14 +129,14 @@ class FlowAnalyticsController extends Controller
                 ])
                 ->where('no_rawat', $bpjsVisit?->no_rawat ?? $noRawat)
                 ->first();
- 
+
             if (!$reg && !$bpjsVisit) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Data registrasi pasien tidak ditemukan'
                 ], 404);
             }
- 
+
             // Sync/fetch from BPJS automatically to populate/update the cache in DB
             $kodebooking = $reg?->referensiMobilejknBpjs?->nobooking ?? $bpjsVisit?->kodebooking ?? $noRawat;
             if ($kodebooking && (!$bpjsVisit || !$bpjsVisit->last_sync || $bpjsVisit->last_sync->lt(now()->subMinutes(15)))) {
@@ -146,18 +146,18 @@ class FlowAnalyticsController extends Controller
                     ->orWhere('kodebooking', $noRawat)
                     ->first();
             }
- 
+
             // Get timestamps
             $realTimestamps = $reg ? $this->flowAnalyticsService->getRealTimestamps($reg) : [1 => null, 2 => null, 3 => null, 4 => null, 5 => null, 6 => null, 7 => null];
- 
+
             if ($bpjsVisit) {
                 $bpjsTimestamps = $this->flowAnalyticsService->getBpjsTimestamps($bpjsVisit);
             } else {
                 $bpjsTimestamps = [1 => null, 2 => null, 3 => null, 4 => null, 5 => null, 6 => null, 7 => null];
             }
- 
+
             $hasBpjsData = ($bpjsVisit && $bpjsVisit->task_data !== null && count($bpjsVisit->task_data) > 0);
- 
+
             if ($hasBpjsData) {
                 $durations = $this->flowAnalyticsService->computeDurationsFromTaskData($bpjsVisit->task_data);
                 $status = $this->flowAnalyticsService->determineStatusFromTaskData($bpjsVisit->task_data);
@@ -178,7 +178,7 @@ class FlowAnalyticsController extends Controller
             }
             $anomalies = $this->flowAnalyticsService->detectPatientAnomalies($realTimestamps, $bpjsTimestamps, $durations);
             $comparison = $this->flowAnalyticsService->compareBpjsAndSimrs($bpjsTimestamps, $realTimestamps);
- 
+
             // Anomaly explanation hints for analyst
             $anomalyHints = [];
             if (in_array('durasi_negatif', $anomalies)) {
@@ -196,7 +196,7 @@ class FlowAnalyticsController extends Controller
             if (in_array('outlier_durasi', $anomalies)) {
                 $anomalyHints[] = 'Outlier durasi: terdapat durasi yang sangat panjang (>180 menit) — mungkin pasien menunggu lama atau ada gap data entry di SIMRS.';
             }
- 
+
             // No. BPJS: prioritas dari bridging_sep.no_kartu, fallback pasien.no_peserta
             $noKartuBpjs = null;
             if ($reg) {
@@ -204,7 +204,7 @@ class FlowAnalyticsController extends Controller
             } elseif ($bpjsVisit) {
                 $noKartuBpjs = $bpjsVisit->nomorkartu;
             }
- 
+
             // Resolve doctor name using SIMRS first, then MapingDokterDpjpvclaim, then BPJS namadokter
             $docName = 'N/A';
             if ($reg && $reg->dokter) {
@@ -224,7 +224,7 @@ class FlowAnalyticsController extends Controller
                     'nm_pasien'      => $reg?->pasien->nm_pasien ?? 'N/A',
                     'no_ktp'         => $reg?->pasien->no_ktp ?? $bpjsVisit?->nik ?? null, // NIK
                     'no_kartu_bpjs'  => $noKartuBpjs, // No. BPJS
-                    'tgl_lahir'      => $reg?->pasien?->tgl_lahir ? \Carbon\Carbon::parse($reg->pasien->tgl_lahir)->format('d M Y') : null,
+                    'tgl_lahir'      => $reg?->pasien?->tgl_lahir ? Carbon::parse($reg->pasien->tgl_lahir)->format('d M Y') : null,
                     'jk'             => $reg?->pasien->jk ?? null,
                     'nm_poli'        => $reg?->poliklinik->nm_poli ?? $bpjsVisit?->namapoli ?? 'N/A',
                     'nm_dokter'      => $docName,
@@ -250,7 +250,7 @@ class FlowAnalyticsController extends Controller
             ], 500);
         }
     }
- 
+
     /**
      * Trigger on-demand sync for a specific date (today's registrations)
      */
@@ -349,15 +349,29 @@ class FlowAnalyticsController extends Controller
     public function verifyBpjs(string $noRawat): JsonResponse
     {
         try {
-            $reg = \App\Models\RegPeriksa::with(['referensiMobilejknBpjs'])->where('no_rawat', $noRawat)->first();
-            if (!$reg) {
+            $reg = \App\Models\RegPeriksa::with(['referensiMobilejknBpjs'])
+                ->where('no_rawat', $noRawat)
+                ->orWhereHas('referensiMobilejknBpjs', function ($q) use ($noRawat) {
+                    $q->where('nobooking', $noRawat);
+                })
+                ->first();
+
+            $bpjsVisit = \App\Models\BpjsPatientVisit::where('no_rawat', $noRawat)
+                ->orWhere('kodebooking', $noRawat)
+                ->first();
+
+            if (!$reg && !$bpjsVisit) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Patient registration not found'
                 ], 404);
             }
 
-            $kodebooking = $reg->referensiMobilejknBpjs ? $reg->referensiMobilejknBpjs->nobooking : $noRawat;
+            $kodebooking = $reg?->referensiMobilejknBpjs?->nobooking
+                ?? $bpjsVisit?->kodebooking
+                ?? $reg?->no_rawat
+                ?? $noRawat;
+
             $bpjsData = $this->mobileJknService->getListTask($kodebooking);
 
             return response()->json([
@@ -366,6 +380,38 @@ class FlowAnalyticsController extends Controller
                 'metadata' => $bpjsData['metadata'] ?? [],
                 'status_code' => $bpjsData['status_code']
             ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get listtask directly from BPJS by kodebooking
+     */
+    public function getListTaskByKodeBooking(Request $request, ?string $kodebooking = null): JsonResponse
+    {
+        try {
+            $bookingCode = $kodebooking ?: $request->input('kodebooking');
+
+            if (!$bookingCode) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Parameter kodebooking wajib diisi'
+                ], 400);
+            }
+
+            $bpjsData = $this->mobileJknService->getListTaskDirect($bookingCode);
+
+            return response()->json([
+                'success'     => $bpjsData['success'] ?? false,
+                'kodebooking' => $bookingCode,
+                'data'        => $bpjsData['data'] ?? [],
+                'metadata'    => $bpjsData['metadata'] ?? [],
+                'status_code' => $bpjsData['status_code'] ?? 500
+            ], (isset($bpjsData['success']) && $bpjsData['success']) ? 200 : ($bpjsData['status_code'] ?? 500));
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
