@@ -23,7 +23,7 @@ function showClinicDetail(nmPoli, dateFrom, dateTo) {
                 modalContent.innerHTML = `<p class="text-rose-500 text-sm font-semibold py-6 text-center">${res.message}</p>`;
                 return;
             }
-            const s = res.stats;
+            const s = res.data;
             const fmt = (stat, key) => stat[key] !== null
                 ? `<span class="${stat[key] < 0 ? 'text-rose-500 font-bold' : ''}">${stat[key]}m</span>`
                 : '<span class="text-slate-300">—</span>';
@@ -47,6 +47,42 @@ function showClinicDetail(nmPoli, dateFrom, dateTo) {
                     </div>
                     <p class="text-[10px] text-rose-500 mt-3 font-semibold">⚠ Durasi negatif biasanya disebabkan data entry tidak urut, timestamp SIMRS terbalik, atau sinkronisasi jam server yang tidak konsisten.</p>
                 </div>`;
+            }
+
+            let bpjsHTML = '';
+            if (res.bpjs_stats) {
+                const b = res.bpjs_stats;
+                const fmtSec = (sec) => sec ? Math.round(sec / 60) + 'm' : '—';
+                bpjsHTML = `
+                <div class="mt-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-2xl p-4">
+                    <h5 class="text-xs font-bold uppercase text-emerald-600 dark:text-emerald-400 mb-3 flex items-center justify-between">
+                        <span><i class="fas fa-shield-alt mr-2"></i> Data Resmi BPJS (${res.bpjs_poli_code})</span>
+                        <span class="text-[10px] bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">Antrean: ${b.jumlah_antrean}</span>
+                    </h5>
+                    <div class="grid grid-cols-4 gap-2 text-center text-xs">
+                        <div class="bg-white dark:bg-slate-800 border border-emerald-100 dark:border-emerald-900 p-2 rounded-xl">
+                            <span class="block text-[9px] text-slate-400 mb-1">Tunggu Poli</span>
+                            <span class="font-bold text-emerald-600 dark:text-emerald-400 text-sm">${fmtSec(b.avg_waktu_task3)}</span>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 border border-emerald-100 dark:border-emerald-900 p-2 rounded-xl">
+                            <span class="block text-[9px] text-slate-400 mb-1">Layan Poli</span>
+                            <span class="font-bold text-emerald-600 dark:text-emerald-400 text-sm">${fmtSec(b.avg_waktu_task4)}</span>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 border border-emerald-100 dark:border-emerald-900 p-2 rounded-xl">
+                            <span class="block text-[9px] text-slate-400 mb-1">Tgg Farmasi</span>
+                            <span class="font-bold text-emerald-600 dark:text-emerald-400 text-sm">${fmtSec(b.avg_waktu_task5)}</span>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 border border-emerald-100 dark:border-emerald-900 p-2 rounded-xl">
+                            <span class="block text-[9px] text-slate-400 mb-1">Lyn Farmasi</span>
+                            <span class="font-bold text-emerald-600 dark:text-emerald-400 text-sm">${fmtSec(b.avg_waktu_task6)}</span>
+                        </div>
+                    </div>
+                </div>`;
+            } else if (res.bpjs_poli_code) {
+                 bpjsHTML = `
+                 <div class="mt-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-center">
+                     <p class="text-[11px] text-slate-500"><i class="fas fa-info-circle mr-1"></i> Kode BPJS: <b>${res.bpjs_poli_code}</b>. Belum ada data resmi dari web service BPJS.</p>
+                 </div>`;
             }
 
             modalContent.innerHTML = `
@@ -77,6 +113,7 @@ function showClinicDetail(nmPoli, dateFrom, dateTo) {
                         <p class="text-center text-slate-300 font-bold text-lg">—</p>
                     </div>`).join('')}
                 </div>
+                ${bpjsHTML}
                 ${negHTML}
             </div>`;
         })

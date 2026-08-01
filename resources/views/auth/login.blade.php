@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Login | Antrol System</title>
-    
+
     <!-- Google Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -140,7 +140,7 @@
 
         <!-- Footer credit -->
         <p class="text-center text-xs text-slate-600 mt-8">
-            &copy; {{ date('Y') }} RSUD Abdul Moeloek. Antrol System. All rights reserved.
+            &copy; {{ date('Y') }} crofean | Antrol System. All rights reserved.
         </p>
     </div>
 </body>

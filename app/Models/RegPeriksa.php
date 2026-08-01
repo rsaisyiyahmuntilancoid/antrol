@@ -117,6 +117,15 @@ class RegPeriksa extends Model
     }
 
     /**
+     * Get referensiMobilejknBpjs row with status Batal (for Task 99 no_booking).
+     */
+    public function referensiMobilejknBpjsBatal()
+    {
+        return $this->hasOne(ReferensiMobilejknBpjs::class, 'no_rawat', 'no_rawat')
+            ->where('status', 'Batal');
+    }
+
+    /**
      * Get the referensiMobilejknBpjsTaskid for the RegPeriksa.
      */
     public function referensiMobilejknBpjsTaskid()

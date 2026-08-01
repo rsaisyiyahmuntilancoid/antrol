@@ -239,17 +239,17 @@ class MobileJknService
         }
 
         // Fallback: use task 3 time + 5-10 minutes if task 4 not available
-        $task3Time = $this->getTask3Timestamp($kodebooking);
-        if ($task3Time) {
-            try {
-                $offsetMinutes = random_int(5, 10);
-            } catch (Throwable $e) {
-                $offsetMinutes = rand(5, 10);
-            }
-            $waktu = Carbon::createFromTimestamp((int)($task3Time / 1000));
-            $waktu = $waktu->copy()->addMinutes($offsetMinutes);
-            return (string) ($waktu->timestamp * 1000);
-        }
+        // $task3Time = $this->getTask3Timestamp($kodebooking);
+        // if ($task3Time) {
+        //     try {
+        //         $offsetMinutes = random_int(5, 10);
+        //     } catch (Throwable $e) {
+        //         $offsetMinutes = rand(5, 10);
+        //     }
+        //     $waktu = Carbon::createFromTimestamp((int)($task3Time / 1000));
+        //     $waktu = $waktu->copy()->addMinutes($offsetMinutes);
+        //     return (string) ($waktu->timestamp * 1000);
+        // }
 
         return null;
     }
@@ -317,17 +317,17 @@ class MobileJknService
         }
 
         // Fallback: use task 4 time + 5-10 minutes if task 5 not available or date mismatch
-        $task4Time = $this->getTask4Timestamp($kodebooking);
-        if ($task4Time) {
-            try {
-                $offsetMinutes = random_int(5, 10);
-            } catch (Throwable $e) {
-                $offsetMinutes = rand(5, 10);
-            }
-            $waktu = Carbon::createFromTimestamp((int)($task4Time / 1000));
-            $waktu = $waktu->copy()->addMinutes($offsetMinutes);
-            return (string) ($waktu->timestamp * 1000);
-        }
+        // $task4Time = $this->getTask4Timestamp($kodebooking);
+        // if ($task4Time) {
+        //     try {
+        //         $offsetMinutes = random_int(5, 10);
+        //     } catch (Throwable $e) {
+        //         $offsetMinutes = rand(5, 10);
+        //     }
+        //     $waktu = Carbon::createFromTimestamp((int)($task4Time / 1000));
+        //     $waktu = $waktu->copy()->addMinutes($offsetMinutes);
+        //     return (string) ($waktu->timestamp * 1000);
+        // }
 
         return null;
     }
@@ -367,17 +367,17 @@ class MobileJknService
         }
 
         // Fallback: use task 4 time + 5-10 minutes if task 6 not available or date mismatch
-        $task4Time = $this->getTask4Timestamp($kodebooking);
-        if ($task4Time) {
-            try {
-                $offsetMinutes = random_int(5, 10);
-            } catch (Throwable $e) {
-                $offsetMinutes = rand(5, 10);
-            }
-            $waktu = Carbon::createFromTimestamp((int)($task4Time / 1000));
-            $waktu = $waktu->copy()->addMinutes($offsetMinutes);
-            return (string) ($waktu->timestamp * 1000);
-        }
+        // $task5Time = $this->getTask5Timestamp($kodebooking);
+        // if ($task5Time) {
+        //     try {
+        //         $offsetMinutes = random_int(5, 10);
+        //     } catch (Throwable $e) {
+        //         $offsetMinutes = rand(5, 10);
+        //     }
+        //     $waktu = Carbon::createFromTimestamp((int)($task5Time / 1000));
+        //     $waktu = $waktu->copy()->addMinutes($offsetMinutes);
+        //     return (string) ($waktu->timestamp * 1000);
+        // }
 
         return null;
     }

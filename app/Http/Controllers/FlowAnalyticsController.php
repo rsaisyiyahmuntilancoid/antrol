@@ -142,7 +142,7 @@ class FlowAnalyticsController extends Controller
     {
         $date = $request->get('date', Carbon::today()->format('Y-m-d'));
         $result = $this->flowAnalyticsService->syncDatePatientsDirectly($date);
-        
+
         return new ApiSuccessResource($result, "Berhasil menyinkronkan data tanggal {$date}");
     }
 
@@ -256,7 +256,7 @@ class FlowAnalyticsController extends Controller
                 if ($reg) {
                     $updateData['no_rawat'] = $reg->no_rawat;
                     $updateData['tanggalperiksa'] = $reg->tgl_registrasi;
-                    
+
                     if ($reg->referensiMobilejknBpjs) {
                         $ref = $reg->referensiMobilejknBpjs;
                         $updateData = array_merge($updateData, [
@@ -376,11 +376,36 @@ class FlowAnalyticsController extends Controller
                 }
             }
 
+            // Fetch polyclinic mapping
+            $poliklinik = \App\Models\Poliklinik::where('nm_poli', $nmPoli)->first();
+            $bpjsPoliCode = null;
+            $bpjsStats = null;
+
+            if ($poliklinik) {
+                $mapping = \App\Models\MapingPoliBpjs::where('kd_poli_rs', $poliklinik->kd_poli)->first();
+                if ($mapping) {
+                    $bpjsPoliCode = $mapping->kd_poli_bpjs;
+
+                    // Fetch BPJS Official Dashboard data for this polyclinic
+                    $bpjsDashboard = $this->mobileJknService->getDashboardPerTanggal($dateFrom, 'rs');
+                    if ($bpjsDashboard['success'] && isset($bpjsDashboard['data']['list'])) {
+                        foreach ($bpjsDashboard['data']['list'] as $bpjsItem) {
+                            if ($bpjsItem['kodepoli'] === $bpjsPoliCode) {
+                                $bpjsStats = $bpjsItem;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
             return (new ApiSuccessResource(
                 $clinicStats,
                 'Clinic statistics retrieved'
             ))->additional([
                 'nm_poli'            => $nmPoli,
+                'bpjs_poli_code'     => $bpjsPoliCode,
+                'bpjs_stats'         => $bpjsStats,
                 'date_range'         => ['from' => $dateFrom, 'to' => $dateTo],
                 'patient_count'      => count($clinicPatients),
                 'negative_durations' => $negativeBreakdown,

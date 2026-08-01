@@ -742,16 +742,20 @@ class FlowAnalyticsService
 
         // Task 3: Check-in / Waktu Validasi Mobile JKN (jika ada data), jika tidak ambil dari RegPeriksa (tgl_registrasi + jam_reg)
         $refMjkn = $reg->referensiMobilejknBpjs;
-        if ($refMjkn && $refMjkn->validasi) {
-            $validasiStr = (string) $refMjkn->validasi;
-            if ($validasiStr !== '0000-00-00 00:00:00' && $validasiStr !== '' && strpos($validasiStr, '-0001') === false && strpos($validasiStr, '0000-') === false) {
-                $parsedV = Carbon::parse($validasiStr);
-                if ($parsedV->year > 1970) {
-                    $timestamps[3] = $parsedV;
+        if ($refMjkn) {
+            // Pasien MJKN: Jika validasi ada, parse datanya. Jika kosong/0000, kembalikan '00.00.00'
+            $timestamps[3] = '00.00.00';
+            if ($refMjkn->validasi) {
+                $validasiStr = (string) $refMjkn->validasi;
+                if ($validasiStr !== '0000-00-00 00:00:00' && $validasiStr !== '' && strpos($validasiStr, '-0001') === false && strpos($validasiStr, '0000-') === false) {
+                    $parsedV = Carbon::parse($validasiStr);
+                    if ($parsedV->year > 1970) {
+                        $timestamps[3] = $parsedV;
+                    }
                 }
             }
-        }
-        if (!$timestamps[3]) {
+        } else {
+            // Pasien Onsite: fallback ke jam registrasi SIMRS
             $timestamps[3] = $timestamps[1];
         }
 
@@ -1342,8 +1346,14 @@ class FlowAnalyticsService
     public function formatTimestampMap(array $timestamps): object
     {
         $result = [];
-        foreach ($timestamps as $taskId => $carbon) {
-            $result['task_' . $taskId] = $carbon?->toDateTimeString();
+        foreach ($timestamps as $taskId => $val) {
+            if ($val instanceof Carbon) {
+                $result['task_' . $taskId] = $val->toDateTimeString();
+            } elseif (is_string($val)) {
+                $result['task_' . $taskId] = $val;
+            } else {
+                $result['task_' . $taskId] = null;
+            }
         }
         return (object) $result;
     }

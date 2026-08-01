@@ -8,6 +8,8 @@
 function parseJsDate(val) {
     if (!val) return null;
     let sVal = String(val).trim();
+    if (sVal === '00.00.00') return sVal;
+    
     // Clean WIB/WITA/WIT
     sVal = sVal.replace(/\s+(WIB|WITA|WIT)$/i, '');
 
@@ -51,6 +53,7 @@ function parseJsDate(val) {
 // Format Date to Time string
 function formatTimeOnly(dateObj) {
     if (!dateObj) return '--:--:--';
+    if (typeof dateObj === 'string') return dateObj;
     return dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
@@ -175,12 +178,16 @@ function renderDetailContent(patient) {
         }
 
         if (parsedReal && parsedSent) {
-            const diffSec = Math.abs(parsedReal - parsedSent) / 1000;
-            if (diffSec < 2) {
-                statusHTML = `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-500 mt-1"><i class="fas fa-check-circle"></i> Sinkron & Sesuai</span>`;
+            if (typeof parsedReal === 'string' || typeof parsedSent === 'string') {
+                statusHTML = `<span class="inline-flex items-center gap-1 text-[10px] text-slate-400 mt-1"><i class="far fa-circle"></i> Menunggu...</span>`;
             } else {
-                const offsetDiff = Math.round(diffSec / 60);
-                statusHTML = `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-500 mt-1"><i class="fas fa-exclamation-circle"></i> Selisih ${offsetDiff}m (Buatan)</span>`;
+                const diffSec = Math.abs(parsedReal - parsedSent) / 1000;
+                if (diffSec < 2) {
+                    statusHTML = `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-500 mt-1"><i class="fas fa-check-circle"></i> Sinkron & Sesuai</span>`;
+                } else {
+                    const offsetDiff = Math.round(diffSec / 60);
+                    statusHTML = `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-500 mt-1"><i class="fas fa-exclamation-circle"></i> Selisih ${offsetDiff}m (Buatan)</span>`;
+                }
             }
         } else if (parsedReal && !parsedSent) {
             statusHTML = `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-rose-500 mt-1"><i class="fas fa-times-circle"></i> Belum Dikirim</span>`;
