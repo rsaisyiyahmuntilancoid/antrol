@@ -1204,40 +1204,49 @@ class FlowAnalyticsService
         return $dist;
     }
 
-    public function buildPatientDetailData(string $noRawat, MobileJknService $mobileJknService): ?array
+    public function buildPatientDetailData(string $identifier, MobileJknService $mobileJknService): ?array
     {
-        $bpjsVisit = BpjsPatientVisit::where('no_rawat', $noRawat)
-            ->orWhere('kodebooking', $noRawat)
+        $bpjsVisit = BpjsPatientVisit::where('kodebooking', $identifier)
+            ->orWhere('no_rawat', $identifier)
             ->first();
+
+        $noRawat = $bpjsVisit?->no_rawat ?? $identifier;
 
         $reg = RegPeriksa::with([
                 'pasien',
                 'poliklinik',
                 'dokter',
                 'referensiMobilejknBpjs',
+                'referensiMobilejknBpjsAll',
                 'referensiMobilejknBpjsTaskid',
                 'bridgingSep',
                 'pemeriksaanRalan.petugas',
                 'pemeriksaanRalan.dokter',
                 'resepObat',
             ])
-            ->where('no_rawat', $bpjsVisit?->no_rawat ?? $noRawat)
+            ->where('no_rawat', $noRawat)
             ->first();
 
-        if (!$reg && !$bpjsVisit) {
+        if (! $reg && ! $bpjsVisit) {
             return null;
         }
 
-        $kodebooking = $reg?->referensiMobilejknBpjs?->nobooking ?? $bpjsVisit?->kodebooking ?? $noRawat;
+        // Try matching specific ReferensiMobilejknBpjs record by nobooking first
+        $refThisBooking = \App\Models\ReferensiMobilejknBpjs::where('nobooking', $identifier)->first();
+        if (! $refThisBooking && $reg) {
+            $refThisBooking = $reg->referensiMobilejknBpjs ?? $reg->referensiMobilejknBpjsAll->first();
+        }
+
+        $kodebooking = $refThisBooking?->nobooking ?? $bpjsVisit?->kodebooking ?? $identifier;
 
         $batalInfo = \App\Models\ReferensiMobilejknBpjsBatal::where('nobooking', $kodebooking)
-            ->orWhere('no_rawat_batal', $reg?->no_rawat ?? $noRawat)
+            ->orWhere('no_rawat_batal', $noRawat)
             ->first();
 
-        if ($kodebooking && (!$bpjsVisit || !$bpjsVisit->last_sync || $bpjsVisit->last_sync->lt(now()->subMinutes(15)))) {
+        if ($kodebooking && (! $bpjsVisit || ! $bpjsVisit->last_sync || $bpjsVisit->last_sync->lt(now()->subMinutes(15)))) {
             $mobileJknService->getListTask($kodebooking);
-            $bpjsVisit = BpjsPatientVisit::where('no_rawat', $noRawat)
-                ->orWhere('kodebooking', $noRawat)
+            $bpjsVisit = BpjsPatientVisit::where('kodebooking', $kodebooking)
+                ->orWhere('no_rawat', $noRawat)
                 ->first();
         }
 
@@ -1253,21 +1262,25 @@ class FlowAnalyticsService
 
         if ($hasBpjsData) {
             $durations = $this->computeDurationsFromTaskData($bpjsVisit->task_data);
-            $status = $this->determineStatusFromTaskData($bpjsVisit->task_data);
+            $status    = $this->determineStatusFromTaskData($bpjsVisit->task_data);
         } else {
             $durations = [
-                'checkin_to_nurse'   => null,
-                'nurse_to_doctor'    => null,
-                'doctor_to_pharmacy' => null,
-                'pharmacy_to_done'   => null,
-                'total_time'         => null,
+                'checkin_to_nurse'     => null,
+                'nurse_to_doctor'      => null,
+                'doctor_to_pharmacy'   => null,
+                'pharmacy_to_done'     => null,
+                'total_time'           => null,
                 'waktu_tunggu_poli'    => null,
                 'waktu_layan_poli'     => null,
                 'waktu_tunggu_farmasi' => null,
                 'waktu_layan_farmasi'  => null,
                 'total_waktu_rs'       => null,
             ];
-            $status = 'Belum Terkirim';
+            $status = ($refThisBooking?->status === 'Batal' || strtolower(trim($reg?->stts ?? '')) === 'batal') ? 'Batal' : 'Belum Terkirim';
+        }
+
+        if ($refThisBooking?->status === 'Batal' || strtolower(trim($reg?->stts ?? '')) === 'batal') {
+            $status = 'Batal';
         }
         $anomalies = $this->detectPatientAnomalies($realTimestamps, $bpjsTimestamps, $durations);
         $comparison = $this->compareBpjsAndSimrs($bpjsTimestamps, $realTimestamps);

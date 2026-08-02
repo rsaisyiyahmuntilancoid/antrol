@@ -71,7 +71,7 @@
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 @foreach ($analytics['patients'] as $p)
                 <tr class="patient-row hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group cursor-pointer"
-                    onclick="showPatientDetail('{{ $p['no_rawat'] }}')" data-rawat="{{ $p['no_rawat'] }}"
+                    onclick="showPatientDetail('{{ $p['kode_booking'] }}')" data-rawat="{{ $p['no_rawat'] }}"
                     data-name="{{ strtolower($p['nm_pasien']) }}" data-rm="{{ $p['no_rkm_medis'] }}"
                     data-clinic="{{ $p['nm_poli'] }}" data-status="{{ $p['status'] }}"
                     data-has-anomali="{{ $p['has_anomalies'] ? 'true' : 'false' }}"
@@ -205,7 +205,7 @@
                         </div>
                     </td>
                     <td class="px-4 py-3.5 text-center" onclick="event.stopPropagation()">
-                        <button onclick="showPatientDetail('{{ $p['no_rawat'] }}')"
+                        <button onclick="showPatientDetail('{{ $p['kode_booking'] }}')"
                             class="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-500/10">
                             <i class="fas fa-search-plus text-xs"></i> Detail
                         </button>

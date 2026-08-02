@@ -238,25 +238,14 @@ class MobileJknService
             }
         }
 
-        // Fallback: use task 3 time + 5-10 minutes if task 4 not available
-        // $task3Time = $this->getTask3Timestamp($kodebooking);
-        // if ($task3Time) {
-        //     try {
-        //         $offsetMinutes = random_int(5, 10);
-        //     } catch (Throwable $e) {
-        //         $offsetMinutes = rand(5, 10);
-        //     }
-        //     $waktu = Carbon::createFromTimestamp((int)($task3Time / 1000));
-        //     $waktu = $waktu->copy()->addMinutes($offsetMinutes);
-        //     return (string) ($waktu->timestamp * 1000);
-        // }
-
+        // Tidak ada data pemeriksaan → return null
+        // Fallback ditangani oleh SendBpjsTaskIds::sendTaskIds() (Task 99)
         return null;
     }
 
     /**
      * Get task 5 timestamp - from pemeriksaan_ralan where nip is in dokter
-     * If not available or on wrong date, fallback to task 4 time + 5-10 minutes
+     * Return null if not available → fallback ditangani SendBpjsTaskIds (T4 + random 5-10m)
      */
     protected function getTask5Timestamp(string $kodebooking): ?string
     {
@@ -267,74 +256,35 @@ class MobileJknService
         $serviceDate = $this->getServiceDate($kodebooking);
 
         $pemeriksaan = PemeriksaanRalan::where('no_rawat', $kodebooking)
-        ->whereHas('dokter') // nip exists in dokter table
-        ->orderBy('jam_rawat', 'desc')
-        ->first();
+            ->whereHas('dokter') // nip exists in dokter table
+            ->orderBy('jam_rawat', 'desc')
+            ->first();
 
         if ($pemeriksaan && $pemeriksaan->jam_rawat) {
-            // Use service date for the date part, just the time from jam_rawat
             $datePart = $serviceDate ? $serviceDate->toDateString() : (str_replace(' 00:00:00', '', $pemeriksaan->tgl_perawatan));
             $waktu = Carbon::parse($datePart . ' ' . $pemeriksaan->jam_rawat->toTimeString(), 'Asia/Jakarta');
 
             // Validate that the time is on the correct service date
             if ($serviceDate && $waktu->toDateString() !== $serviceDate->toDateString()) {
-                Log::warning('Task 5: Timestamp date mismatch, using fallback', [
+                Log::warning('Task 5: Timestamp date mismatch, returning null for fallback', [
                     'kodebooking' => $kodebooking,
                     'calculated_date' => $waktu->toDateString(),
                     'service_date' => $serviceDate->toDateString()
                 ]);
-                // Fall through to use task 4 + offset
-            } else {
-                return (string) ($waktu->timestamp * 1000);
+                return null;
             }
-        } else {
-            $pemeriksaan = PemeriksaanRalan::where('no_rawat', $kodebooking)
-                ->orderBy('jam_rawat', 'desc')
-                ->first();
 
-            if ($pemeriksaan && $pemeriksaan->jam_rawat) {
-                $datePart = $serviceDate ? $serviceDate->toDateString() : (str_replace(' 00:00:00', '', $pemeriksaan->tgl_perawatan));
-                $waktu = Carbon::parse($datePart . ' ' . $pemeriksaan->jam_rawat->toTimeString(), 'Asia/Jakarta');
-
-                // Validate that the time is on the correct service date
-                if ($serviceDate && $waktu->toDateString() !== $serviceDate->toDateString()) {
-                    Log::warning('Task 5 (alt): Timestamp date mismatch, using fallback', [
-                        'kodebooking' => $kodebooking,
-                        'calculated_date' => $waktu->toDateString(),
-                        'service_date' => $serviceDate->toDateString()
-                    ]);
-                    // Fall through to use task 4 + offset
-                } else {
-                    try {
-                        $offsetMinutes = random_int(5, 10);
-                    } catch (Throwable $e) {
-                        $offsetMinutes = rand(5, 10);
-                    }
-                    $waktu = $waktu->copy()->addMinutes($offsetMinutes);
-                    return (string) ($waktu->timestamp * 1000);
-                }
-            }
+            return (string) ($waktu->timestamp * 1000);
         }
 
-        // Fallback: use task 4 time + 5-10 minutes if task 5 not available or date mismatch
-        // $task4Time = $this->getTask4Timestamp($kodebooking);
-        // if ($task4Time) {
-        //     try {
-        //         $offsetMinutes = random_int(5, 10);
-        //     } catch (Throwable $e) {
-        //         $offsetMinutes = rand(5, 10);
-        //     }
-        //     $waktu = Carbon::createFromTimestamp((int)($task4Time / 1000));
-        //     $waktu = $waktu->copy()->addMinutes($offsetMinutes);
-        //     return (string) ($waktu->timestamp * 1000);
-        // }
-
+        // Tidak ada data pemeriksaan dokter → return null
+        // Fallback ditangani oleh SendBpjsTaskIds::sendTaskIds() (T4 + random 5-10m)
         return null;
     }
 
     /**
      * Get task 6 timestamp - from resep_obat jam
-     * If not available or on wrong date, fallback to task 4 time + 5-10 minutes
+     * Return null if not available → SendBpjsTaskIds STOP di Task 5 (tidak ada resep)
      */
     protected function getTask6Timestamp(string $kodebooking): ?string
     {
@@ -349,36 +299,24 @@ class MobileJknService
             ->first();
 
         if ($resep && $resep->jam) {
-            // Use service date for the date part, just the time from jam
             $datePart = $serviceDate ? $serviceDate->toDateString() : (str_replace(' 00:00:00', '', $resep->tgl_perawatan));
             $waktu = Carbon::parse($datePart . ' ' . $resep->jam->toTimeString(), 'Asia/Jakarta');
 
             // Validate that the time is on the correct service date
             if ($serviceDate && $waktu->toDateString() !== $serviceDate->toDateString()) {
-                Log::warning('Task 6: Timestamp date mismatch, using fallback', [
+                Log::warning('Task 6: Timestamp date mismatch, returning null', [
                     'kodebooking' => $kodebooking,
                     'calculated_date' => $waktu->toDateString(),
                     'service_date' => $serviceDate->toDateString()
                 ]);
-                // Fall through to use task 4 + offset
-            } else {
-                return (string) ($waktu->timestamp * 1000);
+                return null;
             }
+
+            return (string) ($waktu->timestamp * 1000);
         }
 
-        // Fallback: use task 4 time + 5-10 minutes if task 6 not available or date mismatch
-        // $task5Time = $this->getTask5Timestamp($kodebooking);
-        // if ($task5Time) {
-        //     try {
-        //         $offsetMinutes = random_int(5, 10);
-        //     } catch (Throwable $e) {
-        //         $offsetMinutes = rand(5, 10);
-        //     }
-        //     $waktu = Carbon::createFromTimestamp((int)($task5Time / 1000));
-        //     $waktu = $waktu->copy()->addMinutes($offsetMinutes);
-        //     return (string) ($waktu->timestamp * 1000);
-        // }
-
+        // Tidak ada data resep → return null
+        // SendBpjsTaskIds::sendTaskIds() STOP di Task 5 (normal, tidak ada resep)
         return null;
     }
 
