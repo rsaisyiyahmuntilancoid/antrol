@@ -524,14 +524,24 @@ class SendBpjsTaskIds extends Command
 
         $ref = $referensi ?: $patient->referensiMobilejknBpjs;
 
+        // Auto update reg_periksa status to Batal if currently Belum
+        if (strtolower(trim($patient->stts ?? '')) === 'belum') {
+            $patient->update(['stts' => 'Batal']);
+            $this->info("Auto-update reg_periksa.stts: {$patient->no_rawat} Belum → Batal");
+        }
+
         if ($success) {
             $stats['task_cancelled']++;
             $this->line("Task 99 (BATAL) sent successfully for: {$kodebooking}");
 
             if ($ref) {
+                $validasiVal = ($ref->validasi && strpos((string) $ref->validasi, '0000-') === false && (string) $ref->validasi !== '-0001-11-30 00:00:00')
+                    ? $ref->validasi
+                    : now();
+
                 $ref->update([
                     'status'      => 'Batal',
-                    'validasi'    => now(),
+                    'validasi'    => $validasiVal,
                     'statuskirim' => 'Sudah',
                 ]);
             }
@@ -541,8 +551,13 @@ class SendBpjsTaskIds extends Command
             $this->line("Failed to send Task 99 for: {$kodebooking} - {$errorMsg}");
 
             if ($ref) {
+                $validasiVal = ($ref->validasi && strpos((string) $ref->validasi, '0000-') === false && (string) $ref->validasi !== '-0001-11-30 00:00:00')
+                    ? $ref->validasi
+                    : now();
+
                 $ref->update([
                     'status'      => 'Batal',
+                    'validasi'    => $validasiVal,
                     'statuskirim' => 'Belum',
                 ]);
             }
