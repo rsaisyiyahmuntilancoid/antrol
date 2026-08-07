@@ -417,10 +417,6 @@ class FlowAnalyticsService
             $isBatalInSimrs = ($visit->regPeriksa && strtolower(trim($visit->regPeriksa->stts ?? '')) === 'batal');
             $isRefBatal     = ($visit->status === 'Batal');
 
-            if ($isBatalInSimrs || $isRefBatal) {
-                $status = 'Batal';
-            }
-
             $bpjsTimestamps = $this->getBpjsTimestamps($visit);
             $comparison     = $this->compareBpjsAndSimrs($bpjsTimestamps, $realTimestamps);
             $anomalies      = $this->detectPatientAnomalies($realTimestamps, $bpjsTimestamps, $durations);
@@ -829,13 +825,6 @@ class FlowAnalyticsService
                 ->sortBy('jam_rawat')
                 ->first();
 
-            if (!$pemeriksaanPetugas) {
-                $pemeriksaanPetugas = $reg->pemeriksaanRalan
-                    ->filter(fn($p) => (string)$p->jam_rawat !== '00:00:00')
-                    ->sortBy('jam_rawat')
-                    ->first();
-            }
-
             if ($pemeriksaanPetugas && $pemeriksaanPetugas->jam_rawat) {
                 $timestamps[4] = $this->parseTimestamp($pemeriksaanPetugas->tgl_perawatan, $pemeriksaanPetugas->jam_rawat);
             }
@@ -855,13 +844,6 @@ class FlowAnalyticsService
                 })
                 ->sortByDesc('jam_rawat')
                 ->first();
-
-            if (!$pemeriksaanDokter) {
-                $pemeriksaanDokter = $reg->pemeriksaanRalan
-                    ->filter(fn($p) => (string)$p->jam_rawat !== '00:00:00')
-                    ->sortByDesc('jam_rawat')
-                    ->first();
-            }
 
             if ($pemeriksaanDokter && $pemeriksaanDokter->jam_rawat) {
                 $timestamps[5] = $this->parseTimestamp($pemeriksaanDokter->tgl_perawatan, $pemeriksaanDokter->jam_rawat);
