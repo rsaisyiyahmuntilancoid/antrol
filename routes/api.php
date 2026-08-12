@@ -29,7 +29,10 @@ Route::prefix('v1')->group(function () {
 
         // ── Mobile JKN API ──────────────────────────────────────
         Route::prefix('mobilejkn')->group(function () {
+            Route::get('/booking-details/{identifier}', [MobileJknController::class, 'getBookingDetails'])->where('identifier', '.*');
+            Route::get('/antrean/pendaftaran/kodebooking/{identifier}', [MobileJknController::class, 'getBookingDetails'])->where('identifier', '.*');
             Route::post('/update-task-id', [MobileJknController::class, 'updateTaskId']);
+            Route::post('/update-task-id-by-no-rawat', [MobileJknController::class, 'updateTaskIdByNoRawat']);
             Route::post('/update-task-id-from-db', [MobileJknController::class, 'updateTaskIdFromDatabase']);
             Route::post('/update-task-id-now', [MobileJknController::class, 'updateTaskIdNow']);
             Route::post('/batch-update-task-ids', [MobileJknController::class, 'batchUpdateTaskIds']);
@@ -42,6 +45,7 @@ Route::prefix('v1')->group(function () {
         });
 
         // ── Antrian API ─────────────────────────────────────────
+        Route::get('/antrean/pendaftaran/kodebooking/{identifier}', [MobileJknController::class, 'getBookingDetails'])->where('identifier', '.*');
         Route::post('/antrian', [MobileJknController::class, 'sendAntrian']);
 
         // ── Reg Periksa API ─────────────────────────────────────

@@ -164,9 +164,22 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 async function syncPatientsInBackground(patients) {
-    const delayMs = 500; // Jeda 0.5 detik untuk hindari rate limit
+    const delayMs = 400; // 400ms delay to avoid rate limit
+    const progressContainer = document.getElementById('sync-progress-container');
+    const progressBar = document.getElementById('sync-progress-bar');
+    const progressText = document.getElementById('sync-progress-text');
+    const progressTitle = document.getElementById('sync-progress-title');
+
+    if (progressContainer) progressContainer.classList.remove('hidden');
+
     for (let i = 0; i < patients.length; i++) {
         const patient = patients[i];
+        const percent = Math.round(((i + 1) / patients.length) * 100);
+
+        if (progressTitle) progressTitle.textContent = `Menyinkronkan data BPJS (${i + 1}/${patients.length})...`;
+        if (progressBar) progressBar.style.width = percent + '%';
+        if (progressText) progressText.textContent = percent + '%';
+
         try {
             const response = await fetch('/api/v1/monitoring/sync-patient', {
                 method: 'POST',
@@ -177,7 +190,10 @@ async function syncPatientsInBackground(patients) {
                 body: JSON.stringify(patient)
             });
             const result = await response.json();
-            if (result.success) {
+            if (result.success && result.data && result.data.patient) {
+                console.log(`Berhasil sync: ${patient.kodebooking}`);
+                updatePatientRow(result.data.patient);
+            } else if (result.success && result.patient) {
                 console.log(`Berhasil sync: ${patient.kodebooking}`);
                 updatePatientRow(result.patient);
             } else {
@@ -190,7 +206,34 @@ async function syncPatientsInBackground(patients) {
             await new Promise(r => setTimeout(r, delayMs));
         }
     }
-    console.log('Selesai menyinkronkan semua pasien!');
+
+    if (progressTitle) progressTitle.textContent = 'Sinkronisasi latar belakang selesai!';
+    if (progressBar) progressBar.style.width = '100%';
+    if (progressText) progressText.textContent = '100%';
+
+    setTimeout(() => {
+        if (progressContainer) progressContainer.classList.add('hidden');
+    }, 3000);
+}
+
+function getStatusBadgeHtml(status, waktuBatal) {
+    const s = status || 'Belum Terkirim';
+    if (s === 'Batal' || s === 'Tidak Hadir / Batal') {
+        let extra = waktuBatal ? `<span class="text-[9px] opacity-75 ml-0.5">(${waktuBatal})</span>` : '';
+        return `<span class="status-badge status-badge-rose" title="Batal / Task 99"><i class="fas fa-user-times mr-1"></i>Batal${extra}</span>`;
+    } else if (s === 'Lengkap (3,4,5,6,7)') {
+        return `<span class="status-badge status-badge-green" title="Lengkap (3,4,5,6,7)">Lengkap</span>`;
+    } else if (s === 'Lengkap (3,4,5,6) - Farmasi Belum Selesai') {
+        return `<span class="status-badge status-badge-blue" title="Lengkap (3,4,5,6) - Farmasi Belum Selesai">Lengkap (3-6)</span>`;
+    } else if (s === 'Task 3,4,5') {
+        return `<span class="status-badge status-badge-purple" title="Task 3,4,5">Task 3,4,5</span>`;
+    } else if (s === 'Task 3,4' || s === 'Task 3') {
+        return `<span class="status-badge status-badge-amber" title="${s}">${s}</span>`;
+    } else if (s === 'Belum Terkirim') {
+        return `<span class="status-badge status-badge-slate"><i class="fas fa-clock mr-1"></i>Belum Terkirim</span>`;
+    } else {
+        return `<span class="status-badge status-badge-slate">${s}</span>`;
+    }
 }
 
 function updatePatientRow(patient) {
@@ -198,13 +241,22 @@ function updatePatientRow(patient) {
     const row = rows.find(r => r.getAttribute('data-kodebooking') === patient.kode_booking);
     if (!row) return;
 
-    const statusBadge = row.querySelector('.sync-status');
-    if (statusBadge) {
-        statusBadge.textContent = 'BPJS';
-        statusBadge.className = 'sync-status badge badge-green';
+    // Update status cell (8th column)
+    const statusCell = row.querySelector('td:nth-child(8)');
+    if (statusCell) {
+        const syncBadgeClass = patient.sync_status === 'synced' ? 'badge-green' : 'badge-slate';
+        const syncBadgeText = patient.sync_status === 'synced' ? 'BPJS' : 'Pending';
+        const mainBadgeHtml = getStatusBadgeHtml(patient.status, patient.waktu_batal);
+
+        statusCell.innerHTML = `
+            <div class="flex flex-col gap-1 items-center justify-center">
+                ${mainBadgeHtml}
+                <span class="sync-status badge ${syncBadgeClass} text-[9px]">${syncBadgeText}</span>
+            </div>
+        `;
     }
 
-    // Update visible duration cells in table
+    // Update visible duration cells in table (3rd - 7th columns)
     const durations = patient.durations || {};
     const cols = [
         { key: 'waktu_tunggu_poli', idx: 3 },

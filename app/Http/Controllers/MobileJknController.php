@@ -17,6 +17,7 @@ use App\Http\Requests\BatalAntreanRequest;
 use App\Http\Requests\FilteredTaskIdLogsRequest;
 use App\Http\Requests\GetTaskIdLogsRequest;
 use App\Http\Requests\ReferensiPendaftaranFilterRequest;
+use App\Http\Requests\UpdateTaskIdByNoRawatRequest;
 use App\Http\Resources\TaskIdLogResource;
 use App\Http\Resources\ApiSuccessResource;
 
@@ -61,6 +62,92 @@ class MobileJknController extends Controller
             ]);
         } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Update task ID for a booking by no_rawat (Khusus Postman)
+     *
+     * @param UpdateTaskIdByNoRawatRequest $request
+     * @return ApiSuccessResource|JsonResponse
+     */
+    public function updateTaskIdByNoRawat(UpdateTaskIdByNoRawatRequest $request): ApiSuccessResource|JsonResponse
+    {
+        $noRawat = $request->input('no_rawat');
+        $taskidInput = $request->input('taskid');
+        $waktu = $request->input('waktu');
+        
+        $taskids = is_array($taskidInput) ? $taskidInput : [(int)$taskidInput];
+
+        try {
+            $kodebooking = $this->mobileJknService->getKodeBooking($noRawat);
+
+            $results = [];
+            $lastResult = null;
+
+            foreach ($taskids as $taskid) {
+                $taskid = (int)$taskid;
+
+                if ($waktu) {
+                    $res = $this->mobileJknService->updateTaskId($kodebooking, $taskid, (string)$waktu);
+                } else {
+                    // Default to picking up time from DB if waktu is not provided
+                    $res = $this->mobileJknService->updateTaskIdFromDatabase($kodebooking, $taskid);
+                }
+
+                $results[] = [
+                    'taskid' => $taskid,
+                    'response' => $res['data'] ?? $res['response'] ?? null,
+                    'message' => $res['error'] ?? $res['metadata']['message'] ?? $res['message'] ?? 'Success'
+                ];
+                $lastResult = $res;
+            }
+            
+            // Jika array taskid lebih dari 1, kembalikan response array. Jika 1, gunakan format awal.
+            if (count($taskids) > 1) {
+                return new ApiSuccessResource($results, "Berhasil memproses " . count($taskids) . " task ID");
+            } else {
+                return (new ApiSuccessResource(
+                    $lastResult['data'] ?? $lastResult['response'] ?? null,
+                    $lastResult['error'] ?? $lastResult['metadata']['message'] ?? $lastResult['message'] ?? 'Success'
+                ))->additional([
+                    'batal' => $lastResult['batal']['data'] ?? null
+                ]);
+            }
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get booking details from BPJS by kodebooking or no_rawat
+     *
+     * @param string $identifier kodebooking or no_rawat
+     * @return JsonResponse
+     */
+    public function getBookingDetails(string $identifier): JsonResponse
+    {
+        try {
+            $kodebooking = $this->mobileJknService->getKodeBooking($identifier);
+            $result = $this->mobileJknService->getBookingDetails($kodebooking);
+
+            $httpStatusCode = 200;
+            if (isset($result['metadata']['code'])) {
+                $code = (int)$result['metadata']['code'];
+                if ($code >= 100 && $code <= 599) {
+                    $httpStatusCode = $code;
+                }
+            }
+
+            return response()->json($result, $httpStatusCode);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'response' => null,
+                'metadata' => [
+                    'code' => 500,
+                    'message' => $e->getMessage()
+                ]
+            ], 500);
         }
     }
 

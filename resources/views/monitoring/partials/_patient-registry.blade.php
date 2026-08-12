@@ -90,8 +90,10 @@
                                 </span>
                                 @endif
                             </span>
-                            <span class="text-[11px] text-slate-400 font-semibold mt-1 flex flex-wrap items-center gap-1">
-                                RM: {{ $p['no_rkm_medis'] }} &bull; Jam Reg: {{ $p['jam_reg'] }} &bull; 
+                            <span class="text-[11px] text-slate-400 font-semibold mt-1 flex flex-wrap items-center gap-1.5">
+                                <span>RM: {{ $p['no_rkm_medis'] }}</span> &bull;
+                                <span>Booking: <code class="font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/50 text-[10px]">{{ $p['kode_booking'] }}</code></span> &bull;
+                                <span>Jam Reg: {{ $p['jam_reg'] }}</span> &bull;
                                 <span class="inline-flex px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase {{ $p['sumber'] === 'Mobile JKN' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400' }}">
                                     {{ $p['sumber'] }}
                                 </span>

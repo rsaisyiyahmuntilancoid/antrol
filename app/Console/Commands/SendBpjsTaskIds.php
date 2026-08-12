@@ -225,7 +225,7 @@ class SendBpjsTaskIds extends Command
                     if ($ts4 && (int) $ts4 > 0) {
                         $offset    = random_int(5, 10);
                         $ts3       = (string) ((int) $ts4 - ($offset * 60 * 1000));
-                        $checkinDt = Carbon::createFromTimestampMs((int) $ts3);
+                        $checkinDt = Carbon::createFromTimestampMs((int) $ts3)->setTimezone('Asia/Jakarta');
 
                         if (! $this->option('dry-run')) {
                             $ref->update([
@@ -463,6 +463,15 @@ class SendBpjsTaskIds extends Command
                 $this->sendSingleTaskId($kodebooking, 7, $ts7, $stats, $dryRun);
             }
         }
+
+        // Refresh task_data cache from BPJS for this patient after sending task IDs
+        if (! $dryRun) {
+            try {
+                $service->getListTask($kodebooking);
+            } catch (\Throwable $e) {
+                // Ignore cache refresh errors during command execution
+            }
+        }
     }
 
     /**
@@ -561,6 +570,12 @@ class SendBpjsTaskIds extends Command
                     'statuskirim' => 'Belum',
                 ]);
             }
+        }
+
+        try {
+            $service->getListTask($kodebooking);
+        } catch (\Throwable $e) {
+            // Ignore cache refresh errors
         }
     }
 
