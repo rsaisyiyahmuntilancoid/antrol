@@ -39,6 +39,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/batal-antrean', [MobileJknController::class, 'batalAntrean']);
             Route::post('/reconcile-cancellations', [MobileJknController::class, 'reconcileCancellations']);
             Route::get('/task-id-logs', [MobileJknController::class, 'getTaskIdLogs']);
+            Route::get('/task-id-stats', [MobileJknController::class, 'taskIdStats']);
             Route::get('/filtered-task-id-logs', [MobileJknController::class, 'getFilteredTaskIdLogs']);
             Route::get('/get-patient-data/{reg_no}', [MobileJknController::class, 'getPatientData']);
             Route::get('/antrean-logs', [MobileJknController::class, 'getAntreanAddLogs']);
@@ -79,6 +80,8 @@ Route::prefix('v1')->group(function () {
         // ── Flow Monitoring API ─────────────────────────────────
         Route::prefix('monitoring')->group(function () {
             Route::get('/analytics', [FlowAnalyticsController::class, 'getAnalyticsData']);
+            Route::get('/patients', [FlowAnalyticsController::class, 'getPatients']);
+            Route::get('/stats-summary', [FlowAnalyticsController::class, 'getStatsSummary']);
             Route::get('/clinic/{nmPoli}', [FlowAnalyticsController::class, 'getClinicDetail']);
             Route::get('/patient/{noRawat}', [FlowAnalyticsController::class, 'getPatientDetail'])->where('noRawat', '.*');
             Route::get('/verify/{noRawat}', [FlowAnalyticsController::class, 'verifyBpjs'])->where('noRawat', '.*');

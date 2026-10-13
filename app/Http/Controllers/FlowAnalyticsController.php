@@ -498,4 +498,63 @@ class FlowAnalyticsController extends Controller
             'failed_count' => $failedCount,
         ]);
     }
+
+    /**
+     * Get paginated patient list via AJAX
+     */
+    public function getPatients(Request $request): JsonResponse
+    {
+        $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
+        $dateTo = $request->get('date_to', $dateFrom);
+        $page = (int) $request->get('page', 1);
+        $perPage = min((int) $request->get('per_page', 25), 100);
+        $search = $request->get('search');
+        $clinic = $request->get('clinic');
+        $status = $request->get('status');
+
+        try {
+            $data = $this->flowAnalyticsService->getPatientsPaginated(
+                $dateFrom,
+                $dateTo,
+                $page,
+                $perPage,
+                $search,
+                $clinic,
+                $status
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get lightweight statistics summary via AJAX
+     */
+    public function getStatsSummary(Request $request): JsonResponse
+    {
+        $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
+        $dateTo = $request->get('date_to', $dateFrom);
+
+        try {
+            $summary = $this->flowAnalyticsService->getAnalyticsSummary($dateFrom, $dateTo);
+
+            return response()->json([
+                'success' => true,
+                'data' => $summary,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }
