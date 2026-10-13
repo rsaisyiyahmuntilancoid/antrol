@@ -37,37 +37,37 @@
         <!-- Task Updates Stats -->
         <div class="lg:col-span-1 space-y-4">
              <div class="glass p-6 rounded-3xl border-indigo-500/10 bg-indigo-500/5">
-                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Task ID Updates</p>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Task ID Updates (Last 30 Days)</p>
                 <div class="space-y-3">
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-slate-500">Success</span>
-                        <span class="font-bold text-emerald-500 text-lg">{{ $successCount }}</span>
+                        <span id="stat-task-success" class="font-bold text-emerald-500 text-lg"><i class="fas fa-spinner fa-spin text-xs opacity-40"></i></span>
                     </div>
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-slate-500">Failed</span>
-                        <span class="font-bold text-rose-500 text-lg">{{ $errorCount }}</span>
+                        <span id="stat-task-error" class="font-bold text-rose-500 text-lg"><i class="fas fa-spinner fa-spin text-xs opacity-40"></i></span>
                     </div>
                     <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
                         <span class="font-bold text-slate-700 dark:text-slate-300">Total</span>
-                        <span class="font-black text-indigo-600 text-xl">{{ $totalCount }}</span>
+                        <span id="stat-task-total" class="font-black text-indigo-600 text-xl"><i class="fas fa-spinner fa-spin text-xs opacity-40"></i></span>
                     </div>
                 </div>
              </div>
 
              <div class="glass p-6 rounded-3xl border-blue-500/10 bg-blue-500/5">
-                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Antrean Additions</p>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Antrean Additions (Last 30 Days)</p>
                 <div class="space-y-3">
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-slate-500">Success</span>
-                        <span class="font-bold text-emerald-500 text-lg">{{ $antreanSuccessCount }}</span>
+                        <span id="stat-antrean-success" class="font-bold text-emerald-500 text-lg"><i class="fas fa-spinner fa-spin text-xs opacity-40"></i></span>
                     </div>
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-slate-500">Failed</span>
-                        <span class="font-bold text-rose-500 text-lg">{{ $antreanErrorCount }}</span>
+                        <span id="stat-antrean-error" class="font-bold text-rose-500 text-lg"><i class="fas fa-spinner fa-spin text-xs opacity-40"></i></span>
                     </div>
                     <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
                         <span class="font-bold text-slate-700 dark:text-slate-300">Total</span>
-                        <span class="font-black text-blue-600 text-xl">{{ $antreanTotalCount }}</span>
+                        <span id="stat-antrean-total" class="font-black text-blue-600 text-xl"><i class="fas fa-spinner fa-spin text-xs opacity-40"></i></span>
                     </div>
                 </div>
              </div>
@@ -187,6 +187,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         initTabs();
+        loadStats();
         loadLogs();
         setupFilters();
         setupModalEvents();
@@ -212,6 +213,32 @@
         });
     }
 
+    function loadStats(startDate = null, endDate = null) {
+        let url = '/api/v1/mobilejkn/task-id-stats';
+        const params = [];
+        if (startDate) params.push(`date_from=${encodeURIComponent(startDate)}`);
+        if (endDate) params.push(`date_to=${encodeURIComponent(endDate)}`);
+        if (params.length > 0) url += '?' + params.join('&');
+
+        axios.get(url).then(res => {
+            const d = res.data?.data || {};
+            document.getElementById('stat-task-success').textContent = Number(d.task_success || 0).toLocaleString();
+            document.getElementById('stat-task-error').textContent = Number(d.task_error || 0).toLocaleString();
+            document.getElementById('stat-task-total').textContent = Number(d.task_total || 0).toLocaleString();
+            document.getElementById('stat-antrean-success').textContent = Number(d.antrean_success || 0).toLocaleString();
+            document.getElementById('stat-antrean-error').textContent = Number(d.antrean_error || 0).toLocaleString();
+            document.getElementById('stat-antrean-total').textContent = Number(d.antrean_total || 0).toLocaleString();
+        }).catch(err => {
+            console.error('Failed to load stats', err);
+            document.getElementById('stat-task-success').textContent = '-';
+            document.getElementById('stat-task-error').textContent = '-';
+            document.getElementById('stat-task-total').textContent = '-';
+            document.getElementById('stat-antrean-success').textContent = '-';
+            document.getElementById('stat-antrean-error').textContent = '-';
+            document.getElementById('stat-antrean-total').textContent = '-';
+        });
+    }
+
     function setupFilters() {
         document.getElementById('filterBtn').onclick = () => {
             const start = document.getElementById('startDate').value;
@@ -220,6 +247,7 @@
             state[state.currentTab].endDate = end;
             state[state.currentTab].page = 1;
             loadLogs();
+            loadStats(start, end);
         };
 
         document.getElementById('taskid-prev-page').onclick = () => { if(state.taskid.page > 1) { state.taskid.page--; loadLogs(); } };
@@ -256,8 +284,11 @@
 
         data.data.forEach(log => {
             const req = tryParse(log.request);
-            const res = tryParse(log.message);
+            const res = log.response ? tryParse(log.response) : tryParse(log.message);
             const isSuccess = log.code >= 200 && log.code < 300;
+            const metaMessage = log.bpjs_meta_message || res?.metadata?.message || res?.metaData?.message || '-';
+            const bookingCode = req?.kodebooking || log.kodebooking || '---';
+            const taskIdDisplay = req?.taskid || (log.operation === 'add_antrean' ? 'ADD' : (log.operation || 'ANT'));
             
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors group';
@@ -269,13 +300,14 @@
                     </span>
                 </td>
                 <td class="px-8 py-5 font-mono text-xs font-bold text-slate-700 dark:text-slate-300">
-                    ${req?.kodebooking || log.kodebooking || '---'}
+                    <div>${bookingCode}</div>
+                    ${log.norm ? `<div class="text-[10px] text-slate-400 font-normal">RM: ${log.norm}</div>` : ''}
                 </td>
                 <td class="px-8 py-5">
-                    <span class="text-xs font-black text-indigo-600">${req?.taskid || 'ANT'}</span>
+                    <span class="text-xs font-black text-indigo-600">${taskIdDisplay}</span>
                 </td>
                 <td class="px-8 py-5">
-                    <div class="text-[11px] text-slate-500 truncate max-w-[200px]" title="${res?.metadata?.message || '-'}">${res?.metadata?.message || '-'}</div>
+                    <div class="text-[11px] text-slate-500 truncate max-w-[200px]" title="${metaMessage}">${metaMessage}</div>
                 </td>
                 <td class="px-8 py-5 text-right">
                     <button class="text-[10px] font-bold uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors flex items-center justify-end gap-1 ml-auto" onclick='openModal(${JSON.stringify(log)})'>
@@ -295,15 +327,20 @@
 
     function openModal(log) {
         const req = tryParse(log.request);
-        const res = tryParse(log.message);
+        const res = log.response ? tryParse(log.response) : tryParse(log.message);
         
         document.getElementById('modalRequest').textContent = JSON.stringify(req, null, 4);
         document.getElementById('modalResponse').textContent = JSON.stringify(res, null, 4);
         document.getElementById('modalCode').textContent = log.code;
         document.getElementById('modalMethod').textContent = log.method || 'POST';
-        document.getElementById('modalTaskId').textContent = req?.taskid || 'N/A';
+        document.getElementById('modalTaskId').textContent = req?.taskid || (log.operation || 'N/A');
         document.getElementById('modalTime').textContent = new Date(log.created_at).toLocaleString();
-        document.getElementById('modalBookingLabel').textContent = `Booking Code: ${req?.kodebooking || 'N/A'}`;
+        
+        let label = `Booking Code: ${req?.kodebooking || log.kodebooking || 'N/A'}`;
+        if (log.norm) label += ` | RM: ${log.norm}`;
+        if (log.nokartu) label += ` | Kartu: ${log.nokartu}`;
+        if (log.operation) label += ` | Op: ${log.operation}`;
+        document.getElementById('modalBookingLabel').textContent = label;
         
         document.getElementById('logModal').classList.remove('hidden');
     }

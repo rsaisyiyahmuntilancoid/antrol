@@ -649,7 +649,16 @@ class MobileJknService
                 json_encode(['kodebooking' => $kodebooking]),
                 json_encode($responseData),
                 $url,
-                'GET'
+                'GET',
+                [
+                    'operation' => 'get_booking',
+                    'endpoint' => '/antrean/pendaftaran/kodebooking',
+                    'response' => json_encode($responseData),
+                    'status_code' => $response->status(),
+                    'http_status' => $response->status(),
+                    'bpjs_meta_code' => $responseData['metadata']['code'] ?? null,
+                    'bpjs_meta_message' => $responseData['metadata']['message'] ?? null,
+                ]
             );
 
             return $responseData;
@@ -775,7 +784,16 @@ class MobileJknService
                 json_encode($requestData),
                 json_encode($responseData),
                 $this->baseUrl . '/antrean/updatewaktu',
-                'POST'
+                'POST',
+                [
+                    'operation' => 'updatewaktu',
+                    'endpoint' => '/antrean/updatewaktu',
+                    'response' => json_encode($responseData),
+                    'status_code' => $response->status(),
+                    'http_status' => $response->status(),
+                    'bpjs_meta_code' => $responseData['metadata']['code'] ?? null,
+                    'bpjs_meta_message' => $responseData['metadata']['message'] ?? null,
+                ]
             );
 
             // Log the response
@@ -1112,7 +1130,15 @@ class MobileJknService
                 json_encode(['kodebooking' => $kodebooking, 'taskid' => $taskid, 'waktu' => $waktu]),
                 $e->getMessage(),
                 $this->baseUrl . '/antrean/updatewaktu',
-                'POST'
+                'POST',
+                [
+                    'operation' => 'updatewaktu',
+                    'endpoint' => '/antrean/updatewaktu',
+                    'status_code' => 500,
+                    'http_status' => 500,
+                    'error_type' => 'exception',
+                    'exception' => $e->getMessage() . "\n" . $e->getTraceAsString(),
+                ]
             );
 
             Log::error('Mobile JKN Task Update Error', [
@@ -1364,7 +1390,16 @@ class MobileJknService
                 json_encode($requestData),
                 json_encode($responseData),
                 $this->baseUrl . '/antrean/getlisttask',
-                'POST'
+                'POST',
+                [
+                    'operation' => 'listtask',
+                    'endpoint' => '/antrean/getlisttask',
+                    'response' => json_encode($responseData),
+                    'status_code' => $response->status(),
+                    'http_status' => $response->status(),
+                    'bpjs_meta_code' => $responseData['metadata']['code'] ?? null,
+                    'bpjs_meta_message' => $responseData['metadata']['message'] ?? null,
+                ]
             );
 
             Log::info('Mobile JKN Get List Task Response', [
@@ -1484,7 +1519,16 @@ class MobileJknService
                 json_encode($requestData),
                 json_encode($responseData),
                 $this->baseUrl . '/antrean/getlisttask',
-                'POST'
+                'POST',
+                [
+                    'operation' => 'listtask',
+                    'endpoint' => '/antrean/getlisttask',
+                    'response' => json_encode($responseData),
+                    'status_code' => $response->status(),
+                    'http_status' => $response->status(),
+                    'bpjs_meta_code' => $responseData['metadata']['code'] ?? null,
+                    'bpjs_meta_message' => $responseData['metadata']['message'] ?? null,
+                ]
             );
 
             Log::info('Mobile JKN Get List Task Direct Response', [
@@ -1745,7 +1789,19 @@ class MobileJknService
                 json_encode($payload),
                 json_encode($responseData),
                 $this->baseUrl . '/antrean/add',
-                'POST'
+                'POST',
+                [
+                    'operation' => 'add_antrean',
+                    'endpoint' => '/antrean/add',
+                    'response' => json_encode($responseData),
+                    'status_code' => $response->status(),
+                    'http_status' => $response->status(),
+                    'bpjs_meta_code' => $responseData['metadata']['code'] ?? null,
+                    'bpjs_meta_message' => $responseData['metadata']['message'] ?? null,
+                    'norm' => $payload['norm'] ?? null,
+                    'nokartu' => $payload['nomorkartu'] ?? null,
+                    'no_rujukan' => $payload['nomorreferensi'] ?? null,
+                ]
             );
 
             // Log the response
@@ -1809,7 +1865,19 @@ class MobileJknService
                         json_encode($payload),
                         json_encode($responseData),
                         $this->baseUrl . '/antrean/add',
-                        'POST'
+                        'POST',
+                        [
+                            'operation' => 'add_antrean',
+                            'endpoint' => '/antrean/add',
+                            'response' => json_encode($responseData),
+                            'status_code' => $response->status(),
+                            'http_status' => $response->status(),
+                            'bpjs_meta_code' => $responseData['metadata']['code'] ?? null,
+                            'bpjs_meta_message' => $responseData['metadata']['message'] ?? null,
+                            'norm' => $payload['norm'] ?? null,
+                            'nokartu' => $payload['nomorkartu'] ?? null,
+                            'no_rujukan' => $payload['nomorreferensi'] ?? null,
+                        ]
                     );
 
                     Log::info('Mobile JKN Add Antrean Response (retry)', [
@@ -1880,10 +1948,20 @@ class MobileJknService
             try {
                 $this->bpjsLogService->logRequest(
                     $response->status(),
-                    json_encode([]),
+                    json_encode(['noPeserta' => $noPeserta, 'kdPoliBpjs' => $kdPoliBpjs]),
                     json_encode($responseData),
                     $url,
-                    'GET'
+                    'GET',
+                    [
+                        'operation' => 'rujukan_peserta',
+                        'endpoint' => '/Rujukan/List/Peserta',
+                        'response' => json_encode($responseData),
+                        'status_code' => $response->status(),
+                        'http_status' => $response->status(),
+                        'bpjs_meta_code' => $responseData['metaData']['code'] ?? $responseData['metadata']['code'] ?? null,
+                        'bpjs_meta_message' => $responseData['metaData']['message'] ?? $responseData['metadata']['message'] ?? null,
+                        'nokartu' => $noPeserta,
+                    ]
                 );
             } catch (Throwable $e) {
                 Log::error('Failed to log BPJS rujukan request', ['error' => $e->getMessage()]);
@@ -1983,10 +2061,20 @@ class MobileJknService
             try {
                 $this->bpjsLogService->logRequest(
                     $response->status(),
-                    json_encode([]),
+                    json_encode(['noPeserta' => $noPeserta, 'kdPoliBpjs' => $kdPoliBpjs]),
                     json_encode($responseData),
                     $url,
-                    'GET'
+                    'GET',
+                    [
+                        'operation' => 'rujukan_rs',
+                        'endpoint' => '/Rujukan/RS/List/Peserta',
+                        'response' => json_encode($responseData),
+                        'status_code' => $response->status(),
+                        'http_status' => $response->status(),
+                        'bpjs_meta_code' => $responseData['metaData']['code'] ?? $responseData['metadata']['code'] ?? null,
+                        'bpjs_meta_message' => $responseData['metaData']['message'] ?? $responseData['metadata']['message'] ?? null,
+                        'nokartu' => $noPeserta,
+                    ]
                 );
             } catch (Throwable $e) {
                 Log::error('Failed to log BPJS rujukan RS request', ['error' => $e->getMessage()]);
@@ -2089,10 +2177,20 @@ class MobileJknService
             try {
                 $this->bpjsLogService->logRequest(
                     $response->status(),
-                    json_encode([]),
+                    json_encode(['noPeserta' => $noPeserta, 'kdPoliBpjs' => $kdPoliBpjs, 'bulan' => $bulan, 'tahun' => $tahun, 'filter' => $filter]),
                     json_encode($responseData),
                     $url,
-                    'GET'
+                    'GET',
+                    [
+                        'operation' => 'surat_kontrol',
+                        'endpoint' => '/RencanaKontrol/ListRencanaKontrol',
+                        'response' => json_encode($responseData),
+                        'status_code' => $response->status(),
+                        'http_status' => $response->status(),
+                        'bpjs_meta_code' => $responseData['metaData']['code'] ?? $responseData['metadata']['code'] ?? null,
+                        'bpjs_meta_message' => $responseData['metaData']['message'] ?? $responseData['metadata']['message'] ?? null,
+                        'nokartu' => $noPeserta,
+                    ]
                 );
             } catch (Throwable $e) {
                 Log::error('Failed to log BPJS kontrol request', ['error' => $e->getMessage()]);
@@ -2210,7 +2308,16 @@ class MobileJknService
                 json_encode($requestData),
                 json_encode($responseData),
                 $this->baseUrl . '/antrean/batal',
-                'POST'
+                'POST',
+                [
+                    'operation' => 'batal_antrean',
+                    'endpoint' => '/antrean/batal',
+                    'response' => json_encode($responseData),
+                    'status_code' => $response->status(),
+                    'http_status' => $response->status(),
+                    'bpjs_meta_code' => $responseData['metadata']['code'] ?? null,
+                    'bpjs_meta_message' => $responseData['metadata']['message'] ?? null,
+                ]
             );
 
             // Log the response
@@ -2267,7 +2374,15 @@ class MobileJknService
                 json_encode(['kodebooking' => $kodeBooking, 'keterangan' => $keterangan]),
                 $e->getMessage(),
                 $this->baseUrl . '/antrean/batal',
-                'POST'
+                'POST',
+                [
+                    'operation' => 'batal_antrean',
+                    'endpoint' => '/antrean/batal',
+                    'status_code' => 500,
+                    'http_status' => 500,
+                    'error_type' => 'exception',
+                    'exception' => $e->getMessage() . "\n" . $e->getTraceAsString(),
+                ]
             );
 
             Log::error('Mobile JKN Batal Antrean Error', [
@@ -2412,7 +2527,16 @@ class MobileJknService
                 json_encode(['tanggal' => $tanggal, 'waktu' => $waktu]),
                 json_encode($responseData),
                 $url,
-                'GET'
+                'GET',
+                [
+                    'operation' => 'dashboard_tanggal',
+                    'endpoint' => '/antrean/dashboard/pertanggal',
+                    'response' => json_encode($responseData),
+                    'status_code' => $response->status(),
+                    'http_status' => $response->status(),
+                    'bpjs_meta_code' => $responseData['metadata']['code'] ?? null,
+                    'bpjs_meta_message' => $responseData['metadata']['message'] ?? null,
+                ]
             );
 
             Log::info('Mobile JKN Get Dashboard Per Tanggal Response', [
@@ -2574,7 +2698,16 @@ class MobileJknService
                 json_encode(['bulan' => $bulan, 'tahun' => $tahun, 'waktu' => $waktu]),
                 json_encode($responseData),
                 $url,
-                'GET'
+                'GET',
+                [
+                    'operation' => 'dashboard_bulan',
+                    'endpoint' => '/antrean/dashboard/perbulan',
+                    'response' => json_encode($responseData),
+                    'status_code' => $response->status(),
+                    'http_status' => $response->status(),
+                    'bpjs_meta_code' => $responseData['metadata']['code'] ?? null,
+                    'bpjs_meta_message' => $responseData['metadata']['message'] ?? null,
+                ]
             );
 
             Log::info('Mobile JKN Get Dashboard Per Bulan Response', [

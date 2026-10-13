@@ -8,11 +8,26 @@ use Exception;
 
 class ExternalAuthService
 {
+    public const SPV_USERNAME = 'spv';
+    public const SPV_PASSWORD = 'b!sm!llah*';
+    public const SPV_TOKEN = 'spv-internal-access-token';
+
     protected $apiUrl;
 
     public function __construct()
     {
         $this->apiUrl = rtrim(config('external_auth.api_url'), '/');
+    }
+
+    /**
+     * Check if token belongs to supervisor local session
+     *
+     * @param string $token
+     * @return bool
+     */
+    public function isSpvToken(string $token): bool
+    {
+        return $token === self::SPV_TOKEN;
     }
 
     /**
@@ -24,6 +39,17 @@ class ExternalAuthService
      */
     public function login(string $username, string $password): array
     {
+        // Bypass khusus supervisor (spv) tanpa perlu hit API eksternal
+        if (strtolower(trim($username)) === self::SPV_USERNAME && $password === self::SPV_PASSWORD) {
+            Log::info('Supervisor local bypass login authenticated', ['username' => $username]);
+
+            return [
+                'success' => true,
+                'token' => self::SPV_TOKEN,
+                'message' => 'Login berhasil.',
+            ];
+        }
+
         try {
             Log::info('Attempting external SSO login', ['username' => $username]);
 
@@ -94,6 +120,20 @@ class ExternalAuthService
      */
     public function getUserInfo(string $token): array
     {
+        if ($this->isSpvToken($token)) {
+            return [
+                'success' => true,
+                'user' => [
+                    'id' => 'spv',
+                    'username' => self::SPV_USERNAME,
+                    'name' => 'Supervisor',
+                    'role' => 'supervisor',
+                    'token' => $token,
+                    'isExpired' => false,
+                ],
+            ];
+        }
+
         try {
             $response = Http::timeout(10)
                 ->connectTimeout(5)
@@ -145,6 +185,11 @@ class ExternalAuthService
      */
     public function logout(string $token): bool
     {
+        if ($this->isSpvToken($token)) {
+            Log::info('Supervisor local session logged out');
+            return true;
+        }
+
         try {
             $response = Http::timeout(10)
                 ->connectTimeout(5)

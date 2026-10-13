@@ -268,4 +268,103 @@ class AuthenticationTest extends TestCase
             ]
         ]);
     }
+
+    /**
+     * Test SPV login succeeds without calling external API.
+     */
+    public function test_spv_login_succeeds_without_calling_external_api(): void
+    {
+        Http::fake();
+
+        $response = $this->from('/login')->post('/login', [
+            'username' => 'spv',
+            'password' => 'b!sm!llah*',
+        ]);
+
+        $response->assertRedirect('/');
+        $this->assertEquals(\App\Services\ExternalAuthService::SPV_TOKEN, session('auth_token'));
+        $this->assertEquals('spv', session('auth_user.username'));
+
+        // Verify that external HTTP API was NOT called
+        Http::assertNothingSent();
+    }
+
+    /**
+     * Test SPV login via API succeeds without calling external API.
+     */
+    public function test_spv_api_login_succeeds_without_calling_external_api(): void
+    {
+        Http::fake();
+
+        $response = $this->postJson('/api/v1/login', [
+            'username' => 'spv',
+            'password' => 'b!sm!llah*',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'token' => \App\Services\ExternalAuthService::SPV_TOKEN,
+            'user' => [
+                'username' => 'spv',
+            ],
+        ]);
+
+        // Verify that external HTTP API was NOT called
+        Http::assertNothingSent();
+    }
+
+    /**
+     * Test SPV with wrong password falls back to external API.
+     */
+    public function test_spv_with_wrong_password_falls_back_to_external_api(): void
+    {
+        $baseUrl = config('external_auth.api_url');
+
+        Http::fake([
+            $baseUrl . '/api/core/sign' => Http::response([
+                'statusCode' => 1,
+                'message' => 'Username atau password salah',
+            ], 401),
+        ]);
+
+        $response = $this->from('/login')->post('/login', [
+            'username' => 'spv',
+            'password' => 'wrongpassword',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors(['auth_error']);
+        $this->assertNull(session('auth_token'));
+
+        // Verify external sign was attempted
+        Http::assertSent(function ($request) use ($baseUrl) {
+            return $request->url() === $baseUrl . '/api/core/sign';
+        });
+    }
+
+    /**
+     * Test SPV logout clears session without calling external API.
+     */
+    public function test_spv_logout_clears_session_without_calling_external_api(): void
+    {
+        Http::fake();
+
+        session([
+            'auth_token' => \App\Services\ExternalAuthService::SPV_TOKEN,
+            'auth_user' => [
+                'id' => 'spv',
+                'username' => 'spv',
+            ],
+        ]);
+
+        $response = $this->post('/logout');
+
+        $response->assertRedirect('/login');
+        $this->assertNull(session('auth_token'));
+        $this->assertNull(session('auth_user'));
+
+        // External logout API should not be called for SPV
+        Http::assertNothingSent();
+    }
 }

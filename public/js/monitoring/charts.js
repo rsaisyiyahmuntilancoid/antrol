@@ -78,12 +78,14 @@ function initCharts() {
 
     const ctxStatus = statusCanvas.getContext('2d');
     const patients = analytics.patients || [];
-    const statusCounts = {};
+    const statusCounts = analytics.status_counts ? Object.assign({}, analytics.status_counts) : {};
 
-    patients.forEach(p => {
-        const status = p.status || 'Belum Terkirim';
-        statusCounts[status] = (statusCounts[status] || 0) + 1;
-    });
+    if (Object.keys(statusCounts).length === 0 && patients.length > 0) {
+        patients.forEach(p => {
+            const status = p.status || 'Belum Terkirim';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+    }
 
     const standardLabels = [
         'Lengkap (3,4,5,6,7)',

@@ -237,7 +237,7 @@ class MobileJknController extends Controller
     }
 
     /**
-     * Display Task ID log view page
+     * Display Task ID log view page (lightweight SSR, stats loaded via AJAX)
      *
      * @return View
      */
@@ -246,26 +246,13 @@ class MobileJknController extends Controller
         $limit = 25;
         $logs = $this->bpjsLogService->getTaskIdLogs($limit, 1);
         
-        // Compute statistics for last 30 days
-        $successCount = BpjsWsRsLog::where('url', 'like', '%/antrean/updatewaktu%')
-            ->whereBetween('code', [200, 299])
-            ->count();
-            
-        $errorCount = BpjsWsRsLog::where('url', 'like', '%/antrean/updatewaktu%')
-            ->whereNotBetween('code', [200, 299])
-            ->count();
-            
-        $totalCount = BpjsWsRsLog::where('url', 'like', '%/antrean/updatewaktu%')->count();
-        
-        $antreanSuccessCount = BpjsWsRsLog::where('url', 'like', '%/antrean/add%')
-            ->whereBetween('code', [200, 299])
-            ->count();
-            
-        $antreanErrorCount = BpjsWsRsLog::where('url', 'like', '%/antrean/add%')
-            ->whereNotBetween('code', [200, 299])
-            ->count();
-            
-        $antreanTotalCount = BpjsWsRsLog::where('url', 'like', '%/antrean/add%')->count();
+        // Pass 0 placeholders - stats are loaded asynchronously via AJAX to avoid 524 Cloudflare timeouts
+        $successCount = 0;
+        $errorCount = 0;
+        $totalCount = 0;
+        $antreanSuccessCount = 0;
+        $antreanErrorCount = 0;
+        $antreanTotalCount = 0;
         
         return view('mobilejkn.taskid-logs', compact(
             'logs', 
@@ -276,6 +263,39 @@ class MobileJknController extends Controller
             'antreanErrorCount',
             'antreanTotalCount'
         ));
+    }
+
+    /**
+     * Get aggregate statistics for Task ID and Antrean Add logs
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function taskIdStats(Request $request): JsonResponse
+    {
+        $dateFrom = $request->query('date_from');
+        $dateTo = $request->query('date_to');
+
+        // Enforce maximum 90 days range if both provided
+        if ($dateFrom && $dateTo) {
+            try {
+                $from = \Carbon\Carbon::parse($dateFrom);
+                $to = \Carbon\Carbon::parse($dateTo);
+                if ($from->diffInDays($to) > 90) {
+                    $dateFrom = $to->copy()->subDays(90)->toDateString();
+                }
+            } catch (\Throwable $e) {
+                $dateFrom = null;
+                $dateTo = null;
+            }
+        }
+
+        $stats = $this->bpjsLogService->getTaskIdStats($dateFrom, $dateTo);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $stats
+        ]);
     }
 
     /**

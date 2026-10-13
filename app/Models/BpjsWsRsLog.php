@@ -22,13 +22,27 @@ class BpjsWsRsLog extends Model
      */
     protected $fillable = [
         'request_id',
+        'operation',
         'status',
         'code',
+        'status_code',
+        'http_status',
+        'error_type',
+        'bpjs_meta_code',
+        'bpjs_meta_message',
         'request',
+        'response',
         'message',
+        'endpoint',
         'url',
         'method',
+        'norm',
+        'nokartu',
+        'no_sep',
+        'no_rujukan',
+        'exception',
         'created_at',
+        'updated_at',
     ];
 
     /**
@@ -40,7 +54,10 @@ class BpjsWsRsLog extends Model
     {
         return [
             'created_at' => 'datetime',
+            'updated_at' => 'datetime',
             'code' => 'integer',
+            'status_code' => 'integer',
+            'http_status' => 'integer',
         ];
     }
 }
