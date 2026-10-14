@@ -229,15 +229,17 @@ class FlowAnalyticsService
             ->pluck('count', 'tgl_registrasi')
             ->toArray();
 
-        // 1. If date range is today and cache count is 0, trigger syncTodayIfEmpty
-        if ($dateFrom === $todayStr && $dateTo === $todayStr) {
+        $isMultiDay = ($dateFrom !== $dateTo);
+
+        // 1. If single day (today only) and cache count is 0, trigger syncTodayIfEmpty
+        if (! $isMultiDay && $dateFrom === $todayStr && $dateTo === $todayStr) {
             $existingCount = BpjsPatientVisit::where('tanggalperiksa', $todayStr)->count();
             if ($existingCount === 0 && isset($simrsRegistrationsByDate[$todayStr]) && $simrsRegistrationsByDate[$todayStr] > 0) {
                 $this->syncTodayIfEmpty($todayStr);
             }
         }
 
-        // 2. Load visits from bpjs_patient_visits cache table (strictly source from BPJS) with lightweight eager loading
+        // 2. Load visits from bpjs_patient_visits cache table (strictly from local DB) with lightweight eager loading
         $visitsQuery = BpjsPatientVisit::with([
             'regPeriksa.pasien',
             'regPeriksa.poliklinik',
@@ -255,85 +257,87 @@ class FlowAnalyticsService
             ->orderBy('id')
             ->get();
 
-        $visitsByKodebooking = $visits->keyBy('kodebooking');
+        // Check for missing bookings in SIMRS ONLY in single-day mode to keep multi-day fast and local-only
+        if (! $isMultiDay) {
+            $visitsByKodebooking = $visits->keyBy('kodebooking');
 
-        // Check if there are any registrations in SIMRS for this date range that are not in bpjs_patient_visits
-        $simrsRegsQuery = RegPeriksa::with(['referensiMobilejknBpjsAll', 'dokter', 'poliklinik'])
-            ->whereBetween('tgl_registrasi', [$dateFrom, $dateTo])
-            ->where('kd_pj', $kdPj);
-        if (! empty($excludePoliArray)) {
-            $simrsRegsQuery->whereNotIn('kd_poli', $excludePoliArray);
-        }
-        $simrsRegs = $simrsRegsQuery->get();
+            $simrsRegsQuery = RegPeriksa::with(['referensiMobilejknBpjsAll', 'dokter', 'poliklinik'])
+                ->where('tgl_registrasi', $dateFrom)
+                ->where('kd_pj', $kdPj);
+            if (! empty($excludePoliArray)) {
+                $simrsRegsQuery->whereNotIn('kd_poli', $excludePoliArray);
+            }
+            $simrsRegs = $simrsRegsQuery->get();
 
-        $missingBookings = [];
-        foreach ($simrsRegs as $reg) {
-            $refAll = $reg->referensiMobilejknBpjsAll;
-            if ($refAll && $refAll->isNotEmpty()) {
-                foreach ($refAll as $ref) {
-                    if ($ref->nobooking && ! $visitsByKodebooking->has($ref->nobooking)) {
+            $missingBookings = [];
+            foreach ($simrsRegs as $reg) {
+                $refAll = $reg->referensiMobilejknBpjsAll;
+                if ($refAll && $refAll->isNotEmpty()) {
+                    foreach ($refAll as $ref) {
+                        if ($ref->nobooking && ! $visitsByKodebooking->has($ref->nobooking)) {
+                            $missingBookings[] = [
+                                'kodebooking' => $ref->nobooking,
+                                'no_rawat'    => $reg->no_rawat,
+                                'reg'         => $reg,
+                                'ref'         => $ref,
+                            ];
+                        }
+                    }
+                } else {
+                    $kodebooking = $reg->no_rawat;
+                    if ($kodebooking && ! $visitsByKodebooking->has($kodebooking)) {
                         $missingBookings[] = [
-                            'kodebooking' => $ref->nobooking,
+                            'kodebooking' => $kodebooking,
                             'no_rawat'    => $reg->no_rawat,
                             'reg'         => $reg,
-                            'ref'         => $ref,
+                            'ref'         => null,
                         ];
                     }
                 }
-            } else {
-                $kodebooking = $reg->no_rawat;
-                if ($kodebooking && ! $visitsByKodebooking->has($kodebooking)) {
-                    $missingBookings[] = [
-                        'kodebooking' => $kodebooking,
-                        'no_rawat'    => $reg->no_rawat,
-                        'reg'         => $reg,
-                        'ref'         => null,
-                    ];
+            }
+
+            if (! empty($missingBookings)) {
+                foreach ($missingBookings as $item) {
+                    $kodebooking = $item['kodebooking'];
+                    $noRawat     = $item['no_rawat'];
+                    $reg         = $item['reg'];
+                    $ref         = $item['ref'];
+
+                    // Create shell record without blocking synchronous BPJS HTTP calls to prevent page load timeouts
+                    BpjsPatientVisit::updateOrCreate(
+                        ['kodebooking' => $kodebooking],
+                        [
+                            'no_rawat'       => $noRawat,
+                            'tanggalperiksa' => $ref->tanggalperiksa ?? $reg->tgl_registrasi,
+                            'norm'           => $ref->norm ?? $reg->no_rkm_medis,
+                            'kodepoli'       => $ref->kodepoli ?? $reg->kd_poli,
+                            'namapoli'       => $reg->poliklinik?->nm_poli,
+                            'kodedokter'     => $ref->kodedokter ?? $reg->dokter?->kd_dokter,
+                            'namadokter'     => $reg->dokter?->nm_dokter,
+                            'task_data'      => [],
+                            'last_sync'      => null,
+                        ]
+                    );
                 }
+
+                // Reload visits to include newly created shell records
+                $visitsQuery = BpjsPatientVisit::with([
+                    'regPeriksa.pasien',
+                    'regPeriksa.poliklinik',
+                    'regPeriksa.dokter',
+                    'regPeriksa.referensiMobilejknBpjs',
+                    'regPeriksa.referensiMobilejknBpjsTaskid',
+                ])
+                    ->whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
+
+                if (! empty($excludePoliArray)) {
+                    $visitsQuery->whereNotIn('kodepoli', $excludePoliArray);
+                }
+
+                $visits = $visitsQuery->orderBy('tanggalperiksa')
+                    ->orderBy('id')
+                    ->get();
             }
-        }
-
-        if (! empty($missingBookings)) {
-            foreach ($missingBookings as $item) {
-                $kodebooking = $item['kodebooking'];
-                $noRawat     = $item['no_rawat'];
-                $reg         = $item['reg'];
-                $ref         = $item['ref'];
-
-                // Create shell record without blocking synchronous BPJS HTTP calls to prevent page load timeouts
-                BpjsPatientVisit::updateOrCreate(
-                    ['kodebooking' => $kodebooking],
-                    [
-                        'no_rawat'       => $noRawat,
-                        'tanggalperiksa' => $ref->tanggalperiksa ?? $reg->tgl_registrasi,
-                        'norm'           => $ref->norm ?? $reg->no_rkm_medis,
-                        'kodepoli'       => $ref->kodepoli ?? $reg->kd_poli,
-                        'namapoli'       => $reg->poliklinik?->nm_poli,
-                        'kodedokter'     => $ref->kodedokter ?? $reg->dokter?->kd_dokter,
-                        'namadokter'     => $reg->dokter?->nm_dokter,
-                        'task_data'      => [],
-                        'last_sync'      => null,
-                    ]
-                );
-            }
-
-            // Reload visits to include newly created shell records
-            $visitsQuery = BpjsPatientVisit::with([
-                'regPeriksa.pasien',
-                'regPeriksa.poliklinik',
-                'regPeriksa.dokter',
-                'regPeriksa.referensiMobilejknBpjs',
-                'regPeriksa.referensiMobilejknBpjsTaskid',
-            ])
-                ->whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
-
-            if (! empty($excludePoliArray)) {
-                $visitsQuery->whereNotIn('kodepoli', $excludePoliArray);
-            }
-
-            $visits = $visitsQuery->orderBy('tanggalperiksa')
-                ->orderBy('id')
-                ->get();
         }
 
         // Load doctor mappings from maping_dokter_dpjpvclaim
@@ -373,15 +377,18 @@ class FlowAnalyticsService
             $statusCounts[$st] = ($statusCounts[$st] ?? 0) + 1;
         }
 
-        // Collect visits that need background sync (task_data is empty and status is not Batal)
+        // Collect visits that need background sync ONLY for single-day view (today or single date)
+        // Never trigger auto-sync for multi-day date ranges to keep it strictly local and fast
         $needsSync = [];
-        foreach ($visits as $visit) {
-            $hasTaskData = ($visit->task_data !== null && is_array($visit->task_data) && count($visit->task_data) > 0);
-            if (! $hasTaskData && $visit->status !== 'Batal') {
-                $needsSync[] = [
-                    'kodebooking' => $visit->kodebooking,
-                    'no_rawat'    => $visit->no_rawat,
-                ];
+        if (! $isMultiDay) {
+            foreach ($visits as $visit) {
+                $hasTaskData = ($visit->task_data !== null && is_array($visit->task_data) && count($visit->task_data) > 0);
+                if (! $hasTaskData && $visit->status !== 'Batal') {
+                    $needsSync[] = [
+                        'kodebooking' => $visit->kodebooking,
+                        'no_rawat'    => $visit->no_rawat,
+                    ];
+                }
             }
         }
 
@@ -1351,7 +1358,13 @@ class FlowAnalyticsService
             }
         }
 
-        if ($kodebooking && (! $bpjsVisit || ! $bpjsVisit->last_sync || $bpjsVisit->last_sync->lt(now()->subMinutes(15)))) {
+        // Only hit BPJS API if the visit is for today and hasn't been synced in last 15 minutes
+        // For past visits, use existing local data to avoid unnecessary network latency and rate limits
+        $isToday = ($bpjsVisit && $bpjsVisit->tanggalperiksa instanceof Carbon)
+            ? $bpjsVisit->tanggalperiksa->isToday()
+            : ($bpjsVisit?->tanggalperiksa === now()->toDateString());
+
+        if ($kodebooking && $isToday && (! $bpjsVisit || ! $bpjsVisit->last_sync || $bpjsVisit->last_sync->lt(now()->subMinutes(15)))) {
             $mobileJknService->getListTask($kodebooking);
             $bpjsVisit = BpjsPatientVisit::where('kodebooking', $kodebooking)->first() ?? BpjsPatientVisit::where('no_rawat', $noRawat)->first();
         }
