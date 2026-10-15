@@ -242,10 +242,7 @@ class FlowAnalyticsService
         // 2. Load visits from bpjs_patient_visits cache table (strictly from local DB) with lightweight eager loading
         $visitsQuery = BpjsPatientVisit::with([
             'regPeriksa.pasien',
-            'regPeriksa.poliklinik',
-            'regPeriksa.dokter',
             'regPeriksa.referensiMobilejknBpjs',
-            'regPeriksa.referensiMobilejknBpjsTaskid',
         ])
             ->whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
 
@@ -323,10 +320,7 @@ class FlowAnalyticsService
                 // Reload visits to include newly created shell records
                 $visitsQuery = BpjsPatientVisit::with([
                     'regPeriksa.pasien',
-                    'regPeriksa.poliklinik',
-                    'regPeriksa.dokter',
                     'regPeriksa.referensiMobilejknBpjs',
-                    'regPeriksa.referensiMobilejknBpjsTaskid',
                 ])
                     ->whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
 
@@ -400,7 +394,7 @@ class FlowAnalyticsService
             'days_with_data'          => count($visitsCountByDate),
             'missing_dates'           => $missingDates,
             'needs_sync'              => $needsSync,
-            'patients'                => $patientFlows,
+            'patients'                => $isMultiDay ? array_slice($patientFlows, 0, 200) : $patientFlows,
             'stats'                   => $stats,
             'status_counts'           => $statusCounts,
             'clinic_stats'            => $clinicStats,
@@ -483,14 +477,16 @@ class FlowAnalyticsService
             $comparison     = $this->compareBpjsAndSimrs($bpjsTimestamps, $realTimestamps);
             $anomalies      = $this->detectPatientAnomalies($realTimestamps, $bpjsTimestamps, $durations);
 
-            // Resolve doctor name using SIMRS first, then mapping table, then BPJS namadokter
-            $docName = 'N/A';
-            if ($visit->regPeriksa && $visit->regPeriksa->dokter) {
-                $docName = $visit->regPeriksa->dokter->nm_dokter;
-            } elseif ($visit->kodedokter && isset($doctorMappings[$visit->kodedokter]) && $doctorMappings[$visit->kodedokter]->dokter) {
-                $docName = $doctorMappings[$visit->kodedokter]->dokter->nm_dokter;
-            } else {
-                $docName = $visit->namadokter ?? 'N/A';
+            // Resolve doctor name using local cache first, then mapping or eager loaded SIMRS
+            $docName = $visit->namadokter;
+            if (empty($docName) || $docName === 'N/A') {
+                if ($visit->regPeriksa && $visit->regPeriksa->relationLoaded('dokter') && $visit->regPeriksa->dokter) {
+                    $docName = $visit->regPeriksa->dokter->nm_dokter;
+                } elseif ($visit->kodedokter && isset($doctorMappings[$visit->kodedokter]) && $doctorMappings[$visit->kodedokter]->dokter) {
+                    $docName = $doctorMappings[$visit->kodedokter]->dokter->nm_dokter;
+                } else {
+                    $docName = 'N/A';
+                }
             }
 
             $waktuBatal = null;
@@ -514,10 +510,13 @@ class FlowAnalyticsService
                 }
             }
 
-            // Determine source: JKN or Onsite
-            $hasBooking = $visit->regPeriksa && $visit->regPeriksa->referensiMobilejknBpjs;
-            if (! $hasBooking && strpos($visit->kodebooking, '/') === false) {
-                $hasBooking = $visit->regPeriksa && $visit->regPeriksa->referensiMobilejknBpjsAll && $visit->regPeriksa->referensiMobilejknBpjsAll->isNotEmpty();
+            // Determine source: JKN or Onsite without triggering N+1 queries
+            $hasBooking = false;
+            if ($visit->regPeriksa && $visit->regPeriksa->relationLoaded('referensiMobilejknBpjs')) {
+                $hasBooking = ($visit->regPeriksa->referensiMobilejknBpjs !== null);
+            }
+            if (! $hasBooking && strpos($visit->kodebooking, '/') === false && strlen($visit->kodebooking) > 6) {
+                $hasBooking = true;
             }
             $sumber = $hasBooking ? 'Mobile JKN' : 'Onsite';
 
@@ -1050,15 +1049,11 @@ class FlowAnalyticsService
         ];
 
         foreach ($patients as $p) {
-            if (count($p['anomalies']) > 0) {
+            if (! empty($p['anomalies'])) {
                 $counts['total_anomalies']++;
                 foreach ($p['anomalies'] as $type) {
                     if (isset($counts[$type])) {
-                        $counts[$type][] = [
-                            'no_rawat'  => $p['no_rawat'],
-                            'nm_pasien' => $p['nm_pasien'],
-                            'nm_poli'   => $p['nm_poli'],
-                        ];
+                        $counts[$type][] = 1;
                     }
                 }
             }
@@ -1564,10 +1559,7 @@ class FlowAnalyticsService
 
         $query = BpjsPatientVisit::with([
             'regPeriksa.pasien',
-            'regPeriksa.poliklinik',
-            'regPeriksa.dokter',
             'regPeriksa.referensiMobilejknBpjs',
-            'regPeriksa.referensiMobilejknBpjsTaskid',
         ])->whereBetween('tanggalperiksa', [$dateFrom, $dateTo]);
 
         if (! empty($excludePoliArray)) {

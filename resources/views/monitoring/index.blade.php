@@ -29,8 +29,8 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Global Dashboard data parsed from Laravel
-    const analytics = @json($analytics);
+    // Global Dashboard data parsed from Laravel (exclude massive patients array from JS payload)
+    const analytics = @json(\Illuminate\Support\Arr::except($analytics, ['patients']));
     const simrsGlobalStats = @json($analytics['global_stats']);
     const dateFrom = '{{ $dateFrom }}';
     const dateTo = '{{ $dateTo }}';
