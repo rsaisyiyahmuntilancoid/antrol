@@ -224,7 +224,12 @@
 
         <!-- SECTION 4: REGISTRY DETAIL PASIEN -->
         <div class="mt-8 page-break">
-            <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-700 mb-3 border-l-4 border-rose-600 pl-2">IV. Log Rincian Durasi Pelayanan Pasien</h3>
+            <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-700 mb-3 border-l-4 border-rose-600 pl-2">
+                IV. Log Rincian Durasi Pelayanan Pasien
+                @if(count($analytics['patients']) < ($analytics['summary']['total_patients'] ?? 0))
+                <span class="font-normal text-slate-500 normal-case">(Menampilkan {{ count($analytics['patients']) }} sampel data dari total {{ number_format($analytics['summary']['total_patients'] ?? 0) }} pasien)</span>
+                @endif
+            </h3>
             <table class="w-full text-[8px]">
                 <thead>
                     <tr>

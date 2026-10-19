@@ -32,6 +32,9 @@ class FlowAnalyticsController extends Controller
      */
     public function index(Request $request)
     {
+        ini_set('memory_limit', '512M');
+        set_time_limit(180);
+
         $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
         $dateTo = $request->get('date_to', $dateFrom);
 
@@ -62,6 +65,9 @@ class FlowAnalyticsController extends Controller
      */
     public function print(Request $request)
     {
+        ini_set('memory_limit', '512M');
+        set_time_limit(180);
+
         $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
         $dateTo = $request->get('date_to', $dateFrom);
 
@@ -91,6 +97,9 @@ class FlowAnalyticsController extends Controller
      */
     public function getAnalyticsData(Request $request): ApiSuccessResource
     {
+        ini_set('memory_limit', '512M');
+        set_time_limit(180);
+
         $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
         $dateTo = $request->get('date_to', $dateFrom);
 

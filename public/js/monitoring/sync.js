@@ -156,8 +156,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Check needs_sync array from analytics
-    if (typeof analytics !== 'undefined' && analytics.needs_sync && analytics.needs_sync.length > 0) {
+    // Check needs_sync array from analytics (strictly only auto-sync for single-day)
+    const isSingleDay = (typeof dateFrom !== 'undefined' && typeof dateTo !== 'undefined' && dateFrom === dateTo);
+    if (isSingleDay && typeof analytics !== 'undefined' && analytics.needs_sync && analytics.needs_sync.length > 0) {
         console.log(`Menyinkronkan ${analytics.needs_sync.length} pasien dari BPJS...`);
         syncPatientsInBackground(analytics.needs_sync);
     }

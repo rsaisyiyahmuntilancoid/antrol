@@ -4,8 +4,14 @@
         class="px-8 py-6 border-b border-slate-200/50 dark:border-slate-800/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <h3 class="text-xl font-bold tracking-tight">Daftar Detail Waktu Kunjungan Pasien</h3>
-            <p class="text-xs text-slate-400 mt-1">Daftar lengkap pasien BPJS beserta durasi antar task
-                pelayanan</p>
+            <p class="text-xs text-slate-400 mt-1">
+                Daftar lengkap pasien BPJS beserta durasi antar task pelayanan
+                @if(count($analytics['patients']) < ($analytics['summary']['total_patients'] ?? 0))
+                <span class="inline-flex items-center gap-1 text-amber-500 font-semibold ml-1">
+                    <i class="fas fa-info-circle"></i> Menampilkan {{ count($analytics['patients']) }} dari {{ number_format($analytics['summary']['total_patients'] ?? 0) }} pasien (filter rentang tanggal)
+                </span>
+                @endif
+            </p>
         </div>
 
         <!-- Filters Control -->
