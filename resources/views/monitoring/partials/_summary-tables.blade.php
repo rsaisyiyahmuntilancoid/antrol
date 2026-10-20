@@ -23,7 +23,7 @@
                         <th class="px-3 py-3 text-center">Total RS</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody id="clinic-summary-tbody" class="divide-y divide-slate-100 dark:divide-slate-800">
                     @foreach ($analytics['clinic_stats'] as $clinic => $stats)
                     <tr class="hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors font-medium cursor-pointer"
                         onclick="showClinicDetail('{{ addslashes($clinic) }}', '{{ $dateFrom }}', '{{ $dateTo }}')">
@@ -71,7 +71,7 @@
                         <th class="px-3 py-3 text-center">Total RS</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody id="doctor-summary-tbody" class="divide-y divide-slate-100 dark:divide-slate-800">
                     @foreach ($analytics['doctor_stats'] as $doctor => $stats)
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors font-medium">
                         <td class="px-4 py-3 font-bold text-slate-800 dark:text-slate-200 text-xs">{{ $doctor }}</td>

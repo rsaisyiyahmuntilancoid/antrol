@@ -153,10 +153,11 @@
                 <i class="fas fa-file-pdf"></i>
                 <span>Cetak PDF</span>
             </button>
-            <button onclick="window.location.reload()"
-                class="glass p-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                title="Refresh Halaman">
-                <i class="fas fa-redo"></i>
+            <button id="btn-manual-refresh" onclick="if (typeof window.doAjaxRefresh === 'function') { window.doAjaxRefresh(); } else { window.location.reload(); }"
+                class="glass px-3.5 py-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-2 border border-slate-200/50 dark:border-slate-800"
+                title="Perbarui Data & Diagram Otomatis (AJAX)">
+                <i class="fas fa-redo" id="manual-refresh-icon"></i>
+                <span id="dashboard-refresh-status" class="text-xs font-semibold hidden md:inline text-slate-500">Auto-Update: Aktif</span>
             </button>
         </div>
     </div>

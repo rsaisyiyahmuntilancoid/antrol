@@ -472,6 +472,12 @@ class FlowAnalyticsService
 
             $isBatalInSimrs = ($visit->regPeriksa && strtolower(trim($visit->regPeriksa->stts ?? '')) === 'batal');
             $isRefBatal     = ($visit->status === 'Batal');
+            $batalRecord    = $batalMap[$visit->kodebooking] ?? ($batalMap[$visit->no_rawat] ?? null);
+
+            // If cancelled in SIMRS, BPJS cache status, or batal table, mark status as Batal
+            if ($isBatalInSimrs || $isRefBatal || ! empty($batalRecord)) {
+                $status = 'Batal';
+            }
 
             $bpjsTimestamps = $this->getBpjsTimestamps($visit);
             $comparison     = $this->compareBpjsAndSimrs($bpjsTimestamps, $realTimestamps);
@@ -501,9 +507,8 @@ class FlowAnalyticsService
                     }
                 }
             }
-            if (! $waktuBatal && $visit->regPeriksa) {
-                $batalRecord = $batalMap[$visit->kodebooking] ?? ($batalMap[$visit->no_rawat] ?? null);
-                if ($batalRecord && $batalRecord->tanggalbatal) {
+            if (! $waktuBatal && $visit->regPeriksa && $batalRecord) {
+                if ($batalRecord->tanggalbatal) {
                     $waktuBatal = $batalRecord->tanggalbatal instanceof Carbon
                         ? $batalRecord->tanggalbatal->toDateTimeString()
                         : (string) $batalRecord->tanggalbatal;
@@ -1573,8 +1578,63 @@ class FlowAnalyticsService
             });
         }
 
-        if ($status && $status !== 'anomali' && ! str_starts_with($status, 'anomali:')) {
-            $query->where('status', $status);
+        if ($status) {
+            if ($status === 'Belum Terkirim' || $status === 'anomali:belum_terkirim') {
+                $query->where(function ($q) {
+                    $q->whereNull('task_data')->orWhere('task_data', '[]')->orWhere('task_data', '');
+                })->where(function ($q) {
+                    $q->where('status', '!=', 'Batal')->orWhereNull('status');
+                });
+            } elseif ($status === 'Batal') {
+                $query->where(function ($q) {
+                    $q->where('status', 'Batal')
+                      ->orWhere('task_data', 'like', '%"taskid":99%')
+                      ->orWhere('task_data', 'like', '%"taskid": 99%');
+                });
+            } elseif ($status === 'Lengkap (3,4,5,6,7)') {
+                $query->where(function ($q) {
+                    $q->where('task_data', 'like', '%"taskid":7%')
+                      ->orWhere('task_data', 'like', '%"taskid": 7%');
+                });
+            } elseif ($status === 'Lengkap (3,4,5,6) - Farmasi Belum Selesai') {
+                $query->where(function ($q) {
+                    $q->where('task_data', 'like', '%"taskid":6%')
+                      ->orWhere('task_data', 'like', '%"taskid": 6%');
+                })->where(function ($q) {
+                    $q->where('task_data', 'not like', '%"taskid":7%')
+                      ->where('task_data', 'not like', '%"taskid": 7%');
+                });
+            } elseif ($status === 'Task 3,4,5') {
+                $query->where(function ($q) {
+                    $q->where('task_data', 'like', '%"taskid":5%')
+                      ->orWhere('task_data', 'like', '%"taskid": 5%');
+                })->where(function ($q) {
+                    $q->where('task_data', 'not like', '%"taskid":6%')
+                      ->where('task_data', 'not like', '%"taskid": 6%');
+                });
+            } elseif ($status === 'Task 3,4') {
+                $query->where(function ($q) {
+                    $q->where('task_data', 'like', '%"taskid":4%')
+                      ->orWhere('task_data', 'like', '%"taskid": 4%');
+                })->where(function ($q) {
+                    $q->where('task_data', 'not like', '%"taskid":5%')
+                      ->where('task_data', 'not like', '%"taskid": 5%');
+                });
+            } elseif ($status === 'Task 3') {
+                $query->where(function ($q) {
+                    $q->where('task_data', 'like', '%"taskid":3%')
+                      ->orWhere('task_data', 'like', '%"taskid": 3%');
+                })->where(function ($q) {
+                    $q->where('task_data', 'not like', '%"taskid":4%')
+                      ->where('task_data', 'not like', '%"taskid": 4%');
+                });
+            } elseif ($status === 'anomali') {
+                $query->where(function ($q) {
+                    $q->whereNull('task_data')->orWhere('task_data', '[]')->orWhere('task_data', '');
+                });
+            } else {
+                $query->where('status', $status);
+            }
         }
 
         if ($search) {
@@ -1583,6 +1643,8 @@ class FlowAnalyticsService
                 $q->where('kodebooking', 'like', "%{$s}%")
                   ->orWhere('no_rawat', 'like', "%{$s}%")
                   ->orWhere('norm', 'like', "%{$s}%")
+                  ->orWhere('namapoli', 'like', "%{$s}%")
+                  ->orWhere('namadokter', 'like', "%{$s}%")
                   ->orWhereHas('regPeriksa.pasien', function ($pq) use ($s) {
                       $pq->where('nm_pasien', 'like', "%{$s}%");
                   });

@@ -1,16 +1,22 @@
+@php
+    $grandTotalPatients = (int) ($analytics['summary']['total_patients'] ?? count($analytics['patients']));
+    $initialPatients = array_slice($analytics['patients'] ?? [], 0, 25);
+    $initialShown = count($initialPatients);
+@endphp
+
 <!-- Patients Registry List Table -->
 <div class="glass rounded-[32px] overflow-hidden shadow-sm" id="patient-registry-card">
     <div
         class="px-8 py-6 border-b border-slate-200/50 dark:border-slate-800/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <h3 class="text-xl font-bold tracking-tight">Daftar Detail Waktu Kunjungan Pasien</h3>
-            <p class="text-xs text-slate-400 mt-1">
-                Daftar lengkap pasien BPJS beserta durasi antar task pelayanan
-                @if(count($analytics['patients']) < ($analytics['summary']['total_patients'] ?? 0))
-                <span class="inline-flex items-center gap-1 text-amber-500 font-semibold ml-1">
-                    <i class="fas fa-info-circle"></i> Menampilkan {{ count($analytics['patients']) }} dari {{ number_format($analytics['summary']['total_patients'] ?? 0) }} pasien (filter rentang tanggal)
+            <p class="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-1.5">
+                <span>Daftar lengkap pasien BPJS beserta durasi antar task pelayanan</span> &bull;
+                <span id="patient-table-info-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-800/50 shadow-sm">
+                    <i class="fas fa-list-ol text-blue-500"></i>
+                    <span>Menampilkan <strong id="header-info-range">1 - {{ $initialShown }}</strong> dari <strong id="header-info-total">{{ number_format($grandTotalPatients, 0, ',', '.') }}</strong> data pasien</span>
+                    <span id="header-info-grand" class="text-slate-400 font-normal hidden"></span>
                 </span>
-                @endif
             </p>
         </div>
 
@@ -74,8 +80,8 @@
                     <th class="px-4 py-4 text-center">Aksi</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                @foreach ($analytics['patients'] as $p)
+            <tbody id="patients-table-body" class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                @foreach ($initialPatients as $p)
                 <tr class="patient-row hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group cursor-pointer"
                     onclick="showPatientDetail('{{ $p['kode_booking'] }}')" data-rawat="{{ $p['no_rawat'] }}"
                     data-name="{{ strtolower($p['nm_pasien']) }}" data-rm="{{ $p['no_rkm_medis'] }}"
@@ -227,15 +233,17 @@
     <!-- Pagination Controls -->
     <div class="px-8 py-5 border-t border-slate-200/50 dark:border-slate-800/50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-800/10"
         id="pagination-controls-bar">
-        <div class="text-xs font-semibold text-slate-500">
-            Menampilkan <span id="pagination-info-start"
-                class="font-bold text-slate-700 dark:text-slate-300">1</span> - <span id="pagination-info-end"
-                class="font-bold text-slate-700 dark:text-slate-300">25</span> dari <span
-                id="pagination-info-total" class="font-bold text-slate-700 dark:text-slate-300">0</span> pasien
+        <div class="text-xs font-semibold text-slate-500" id="pagination-info-text">
+            Menampilkan baris <span id="pagination-info-start"
+                class="font-bold text-slate-700 dark:text-slate-300">{{ $initialShown > 0 ? 1 : 0 }}</span> - <span id="pagination-info-end"
+                class="font-bold text-slate-700 dark:text-slate-300">{{ $initialShown }}</span> dari <span
+                id="pagination-info-total" class="font-bold text-slate-700 dark:text-slate-300">{{ number_format($grandTotalPatients, 0, ',', '.') }}</span> data pasien
+            <span id="pagination-info-grand-total" class="text-slate-400 font-normal hidden"></span>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             <button onclick="changePage(1)" id="btn-page-first"
-                class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Halaman Pertama">
                 <i class="fas fa-angle-double-left"></i>
             </button>
             <button onclick="changePage(currentPage - 1)" id="btn-page-prev"
@@ -250,18 +258,19 @@
                 Next <i class="fas fa-angle-right"></i>
             </button>
             <button onclick="changePage(totalPages)" id="btn-page-last"
-                class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                class="glass px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Halaman Terakhir">
                 <i class="fas fa-angle-double-right"></i>
             </button>
         </div>
         <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-slate-400">Baris per halaman:</span>
+            <span class="text-xs font-semibold text-slate-400">Tampilkan:</span>
             <select id="pagination-page-size" onchange="changePageSize(this.value)"
-                class="bg-slate-100 dark:bg-slate-850 border-none rounded-xl px-2.5 py-1.5 text-xs font-bold outline-none text-slate-600 dark:text-slate-400">
-                <option value="10">10</option>
-                <option value="25" selected>25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
+                class="bg-slate-100 dark:bg-slate-850 border border-slate-200/60 dark:border-slate-800 rounded-xl px-2.5 py-1.5 text-xs font-bold outline-none text-slate-600 dark:text-slate-400">
+                <option value="10">10 data / hal</option>
+                <option value="25" selected>25 data / hal</option>
+                <option value="50">50 data / hal</option>
+                <option value="100">100 data / hal</option>
             </select>
         </div>
     </div>
