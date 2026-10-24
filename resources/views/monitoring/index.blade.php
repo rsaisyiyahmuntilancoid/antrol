@@ -29,11 +29,16 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Global Dashboard data parsed from Laravel (exclude massive patients array from JS payload)
-    const analytics = @json(\Illuminate\Support\Arr::except($analytics, ['patients']));
-    const simrsGlobalStats = @json($analytics['global_stats']);
-    const dateFrom = '{{ $dateFrom }}';
-    const dateTo = '{{ $dateTo }}';
+    // Global Dashboard data attached to window (exclude massive patients array from initial JS payload)
+    window.analytics = @json(\Illuminate\Support\Arr::except($analytics, ['patients']));
+    window.simrsGlobalStats = @json($analytics['global_stats']);
+    window.dateFrom = '{{ $dateFrom }}';
+    window.dateTo = '{{ $dateTo }}';
+    // Backwards compatibility for scripts referring directly to variables
+    const analytics = window.analytics;
+    const simrsGlobalStats = window.simrsGlobalStats;
+    const dateFrom = window.dateFrom;
+    const dateTo = window.dateTo;
 </script>
 <script src="{{ asset('js/monitoring/core.js') }}?v={{ filemtime(public_path('js/monitoring/core.js')) }}"></script>
 <script src="{{ asset('js/monitoring/charts.js') }}?v={{ filemtime(public_path('js/monitoring/charts.js')) }}"></script>

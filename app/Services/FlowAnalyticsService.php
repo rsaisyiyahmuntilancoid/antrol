@@ -4,6 +4,8 @@ namespace App\Services;
 use App\Models\BpjsPatientVisit;
 use App\Models\MapingDokterDpjpvclaim;
 use App\Models\RegPeriksa;
+use App\Models\ReferensiMobilejknBpjs;
+use App\Models\ReferensiMobilejknBpjsBatal;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -472,6 +474,12 @@ class FlowAnalyticsService
 
             $isBatalInSimrs = ($visit->regPeriksa && strtolower(trim($visit->regPeriksa->stts ?? '')) === 'batal');
             $isRefBatal     = ($visit->status === 'Batal');
+            $batalRecord    = $batalMap[$visit->kodebooking] ?? ($batalMap[$visit->no_rawat] ?? null);
+
+            // If cancelled in SIMRS, BPJS cache status, or batal table, mark status as Batal
+            if ($isBatalInSimrs || $isRefBatal || ! empty($batalRecord)) {
+                $status = 'Batal';
+            }
 
             $bpjsTimestamps = $this->getBpjsTimestamps($visit);
             $comparison     = $this->compareBpjsAndSimrs($bpjsTimestamps, $realTimestamps);
@@ -501,9 +509,8 @@ class FlowAnalyticsService
                     }
                 }
             }
-            if (! $waktuBatal && $visit->regPeriksa) {
-                $batalRecord = $batalMap[$visit->kodebooking] ?? ($batalMap[$visit->no_rawat] ?? null);
-                if ($batalRecord && $batalRecord->tanggalbatal) {
+            if (! $waktuBatal && $visit->regPeriksa && $batalRecord) {
+                if ($batalRecord->tanggalbatal) {
                     $waktuBatal = $batalRecord->tanggalbatal instanceof Carbon
                         ? $batalRecord->tanggalbatal->toDateTimeString()
                         : (string) $batalRecord->tanggalbatal;
@@ -1573,8 +1580,63 @@ class FlowAnalyticsService
             });
         }
 
-        if ($status && $status !== 'anomali' && ! str_starts_with($status, 'anomali:')) {
-            $query->where('status', $status);
+        if ($status) {
+            if ($status === 'Belum Terkirim' || $status === 'anomali:belum_terkirim') {
+                $query->where(function ($q) {
+                    $q->whereNull('task_data')->orWhere('task_data', '[]')->orWhere('task_data', '');
+                })->where(function ($q) {
+                    $q->where('status', '!=', 'Batal')->orWhereNull('status');
+                });
+            } elseif ($status === 'Batal') {
+                $query->where(function ($q) {
+                    $q->where('status', 'Batal')
+                      ->orWhere('task_data', 'like', '%"taskid":99%')
+                      ->orWhere('task_data', 'like', '%"taskid": 99%');
+                });
+            } elseif ($status === 'Lengkap (3,4,5,6,7)') {
+                $query->where(function ($q) {
+                    $q->where('task_data', 'like', '%"taskid":7%')
+                      ->orWhere('task_data', 'like', '%"taskid": 7%');
+                });
+            } elseif ($status === 'Lengkap (3,4,5,6) - Farmasi Belum Selesai') {
+                $query->where(function ($q) {
+                    $q->where('task_data', 'like', '%"taskid":6%')
+                      ->orWhere('task_data', 'like', '%"taskid": 6%');
+                })->where(function ($q) {
+                    $q->where('task_data', 'not like', '%"taskid":7%')
+                      ->where('task_data', 'not like', '%"taskid": 7%');
+                });
+            } elseif ($status === 'Task 3,4,5') {
+                $query->where(function ($q) {
+                    $q->where('task_data', 'like', '%"taskid":5%')
+                      ->orWhere('task_data', 'like', '%"taskid": 5%');
+                })->where(function ($q) {
+                    $q->where('task_data', 'not like', '%"taskid":6%')
+                      ->where('task_data', 'not like', '%"taskid": 6%');
+                });
+            } elseif ($status === 'Task 3,4') {
+                $query->where(function ($q) {
+                    $q->where('task_data', 'like', '%"taskid":4%')
+                      ->orWhere('task_data', 'like', '%"taskid": 4%');
+                })->where(function ($q) {
+                    $q->where('task_data', 'not like', '%"taskid":5%')
+                      ->where('task_data', 'not like', '%"taskid": 5%');
+                });
+            } elseif ($status === 'Task 3') {
+                $query->where(function ($q) {
+                    $q->where('task_data', 'like', '%"taskid":3%')
+                      ->orWhere('task_data', 'like', '%"taskid": 3%');
+                })->where(function ($q) {
+                    $q->where('task_data', 'not like', '%"taskid":4%')
+                      ->where('task_data', 'not like', '%"taskid": 4%');
+                });
+            } elseif ($status === 'anomali') {
+                $query->where(function ($q) {
+                    $q->whereNull('task_data')->orWhere('task_data', '[]')->orWhere('task_data', '');
+                });
+            } else {
+                $query->where('status', $status);
+            }
         }
 
         if ($search) {
@@ -1583,6 +1645,8 @@ class FlowAnalyticsService
                 $q->where('kodebooking', 'like', "%{$s}%")
                   ->orWhere('no_rawat', 'like', "%{$s}%")
                   ->orWhere('norm', 'like', "%{$s}%")
+                  ->orWhere('namapoli', 'like', "%{$s}%")
+                  ->orWhere('namadokter', 'like', "%{$s}%")
                   ->orWhereHas('regPeriksa.pasien', function ($pq) use ($s) {
                       $pq->where('nm_pasien', 'like', "%{$s}%");
                   });
@@ -1606,4 +1670,603 @@ class FlowAnalyticsService
             'last_page'    => (int) ceil($total / max(1, $perPage)),
         ];
     }
+
+    /**
+     * Send Task IDs manually for a single patient (either Task 99 if cancelled or Tasks 3-7 if active)
+     */
+    public function sendPatientTasksManually(string $kodebooking, string $noRawat): array
+    {
+        try {
+            $reg = RegPeriksa::with([
+                'referensiMobilejknBpjs',
+                'referensiMobilejknBpjsTaskid',
+                'pasien',
+                'poliklinik',
+                'dokter',
+            ])->find($noRawat);
+
+            if (! $reg) {
+                return [
+                    'success' => false,
+                    'message' => "Data pasien dengan No. Rawat {$noRawat} tidak ditemukan",
+                ];
+            }
+
+            $mobileJknService = app(MobileJknService::class);
+            $ref = $reg->referensiMobilejknBpjs;
+
+            // Check if patient is marked as Batal
+            $isBatalInSimrs = (strtolower(trim($reg->stts ?? '')) === 'batal');
+            $isRefBatal     = ($ref && strtolower(trim($ref->status ?? '')) === 'batal');
+            $isBatalTabel   = ReferensiMobilejknBpjsBatal::where('nobooking', $kodebooking)
+                ->orWhere('no_rawat_batal', $noRawat)
+                ->exists();
+
+            $isCancelled = ($isBatalInSimrs || $isRefBatal || $isBatalTabel);
+
+            if ($isCancelled) {
+                $nowStr = (string) (now()->timestamp * 1000);
+                $result = $mobileJknService->updateTaskId($kodebooking, 99, $nowStr);
+
+                $metaMsg = $result['data']['metadata']['message'] ?? ($result['metadata']['message'] ?? ($result['message'] ?? ''));
+                $isAcceptable = is_string($metaMsg) && (
+                    strpos($metaMsg, 'Ok') !== false ||
+                    strpos($metaMsg, 'sudah ada') !== false ||
+                    strpos(strtolower($metaMsg), 'batal') !== false ||
+                    strpos($metaMsg, 'tidak ditemukan') !== false
+                );
+
+                $success = ($result['success'] ?? false) || $isAcceptable;
+
+                if ($reg->stts !== 'Batal') {
+                    $reg->update(['stts' => 'Batal']);
+                }
+
+                if ($ref) {
+                    $validasiVal = ($ref->validasi && strpos((string) $ref->validasi, '0000-') === false && (string) $ref->validasi !== '-0001-11-30 00:00:00')
+                        ? $ref->validasi
+                        : now();
+                    $ref->update([
+                        'status'      => 'Batal',
+                        'statuskirim' => 'Sudah',
+                        'validasi'    => $validasiVal,
+                    ]);
+                }
+
+                ReferensiMobilejknBpjsBatal::where('nobooking', $kodebooking)
+                    ->orWhere('no_rawat_batal', $noRawat)
+                    ->update(['statuskirim' => 'Sudah']);
+
+                // Resync local cache from BPJS
+                $syncRes = $this->syncSinglePatient($kodebooking, $noRawat);
+
+                return [
+                    'success'    => $success,
+                    'is_batal'   => true,
+                    'message'    => $success ? "Task 99 (Batal) berhasil dikirim untuk {$kodebooking}" : ($result['error'] ?? $metaMsg ?? 'Gagal mengirim Task 99'),
+                    'tasks_sent' => [99],
+                    'patient'    => $syncRes['patient'] ?? null,
+                ];
+            }
+
+            // Normal / active patient -> Evaluate existing tasks from BPJS
+            $listTaskResult = $mobileJknService->getListTask($kodebooking);
+            $existingTaskIds = [];
+
+            if (! empty($listTaskResult['data']) && is_array($listTaskResult['data'])) {
+                foreach ($listTaskResult['data'] as $item) {
+                    if (isset($item['taskid'])) {
+                        $existingTaskIds[] = (int) $item['taskid'];
+                    }
+                }
+            }
+
+            $tasksSent = [];
+            $errors = [];
+
+            // ── TASK 3 ──
+            if (! in_array(3, $existingTaskIds)) {
+                $ts3 = $mobileJknService->getTaskTimestampFromDatabase($kodebooking, 3);
+                if ($ts3 === null || (int) $ts3 < 1609459200000) {
+                    $ts4 = $mobileJknService->getTaskTimestampFromDatabase($kodebooking, 4);
+                    if ($ts4 && (int) $ts4 >= 1609459200000) {
+                        $offset = random_int(5, 10);
+                        $ts3    = (string) ((int) $ts4 - ($offset * 60 * 1000));
+                    } elseif ($reg->tgl_registrasi && $reg->jam_reg) {
+                        $ts3 = (string) (Carbon::parse($reg->tgl_registrasi . ' ' . $reg->jam_reg)->timestamp * 1000);
+                    }
+                }
+
+                if ($ts3 && (int) $ts3 >= 1609459200000) {
+                    $res3 = $mobileJknService->updateTaskId($kodebooking, 3, $ts3);
+                    $metaMsg3 = $res3['data']['metadata']['message'] ?? ($res3['metadata']['message'] ?? '');
+                    if (($res3['success'] ?? false) || (is_string($metaMsg3) && strpos($metaMsg3, 'sudah ada') !== false)) {
+                        $tasksSent[] = 3;
+                    } else {
+                        $errors[] = "Task 3: " . ($res3['error'] ?? $metaMsg3 ?? 'Gagal');
+                    }
+                } else {
+                    $errors[] = "Task 3: Tidak menemukan timestamp registrasi yang valid";
+                }
+            }
+
+            // ── TASK 4 ──
+            if (! in_array(4, $existingTaskIds)) {
+                $ts4 = $mobileJknService->getTaskTimestampFromDatabase($kodebooking, 4);
+                if ($ts4 && (int) $ts4 >= 1609459200000) {
+                    $res4 = $mobileJknService->updateTaskId($kodebooking, 4, $ts4);
+                    $metaMsg4 = $res4['data']['metadata']['message'] ?? ($res4['metadata']['message'] ?? '');
+                    if (($res4['success'] ?? false) || (is_string($metaMsg4) && strpos($metaMsg4, 'sudah ada') !== false)) {
+                        $tasksSent[] = 4;
+                    } else {
+                        $errors[] = "Task 4: " . ($res4['error'] ?? $metaMsg4 ?? 'Gagal');
+                    }
+                } else {
+                    $errors[] = "Task 4: Belum ada data pemeriksaan dokter di SIMRS";
+                }
+            }
+
+            // ── TASK 5 ──
+            if (! in_array(5, $existingTaskIds)) {
+                $ts5 = $mobileJknService->getTaskTimestampFromDatabase($kodebooking, 5);
+                if ($ts5 === null || (int) $ts5 < 1609459200000) {
+                    $ts4Val = $mobileJknService->getTaskTimestampFromDatabase($kodebooking, 4);
+                    if ($ts4Val && (int) $ts4Val >= 1609459200000) {
+                        $offset = random_int(5, 10);
+                        $ts5    = (string) ((int) $ts4Val + ($offset * 60 * 1000));
+                    }
+                }
+
+                if ($ts5 && (int) $ts5 >= 1609459200000) {
+                    $res5 = $mobileJknService->updateTaskId($kodebooking, 5, $ts5);
+                    $metaMsg5 = $res5['data']['metadata']['message'] ?? ($res5['metadata']['message'] ?? '');
+                    if (($res5['success'] ?? false) || (is_string($metaMsg5) && strpos($metaMsg5, 'sudah ada') !== false)) {
+                        $tasksSent[] = 5;
+                    } else {
+                        $errors[] = "Task 5: " . ($res5['error'] ?? $metaMsg5 ?? 'Gagal');
+                    }
+                }
+            }
+
+            // ── TASK 6 ──
+            $ts6 = null;
+            if (! in_array(6, $existingTaskIds)) {
+                $ts6 = $mobileJknService->getTaskTimestampFromDatabase($kodebooking, 6);
+                if ($ts6 && (int) $ts6 >= 1609459200000) {
+                    $res6 = $mobileJknService->updateTaskId($kodebooking, 6, $ts6);
+                    $metaMsg6 = $res6['data']['metadata']['message'] ?? ($res6['metadata']['message'] ?? '');
+                    if (($res6['success'] ?? false) || (is_string($metaMsg6) && strpos($metaMsg6, 'sudah ada') !== false)) {
+                        $tasksSent[] = 6;
+                    } else {
+                        $errors[] = "Task 6: " . ($res6['error'] ?? $metaMsg6 ?? 'Gagal');
+                    }
+                }
+            } else {
+                $ts6 = $mobileJknService->getTaskTimestampFromDatabase($kodebooking, 6);
+            }
+
+            // ── TASK 7 ──
+            if (! in_array(7, $existingTaskIds)) {
+                $ts7 = $mobileJknService->getTaskTimestampFromDatabase($kodebooking, 7);
+                if ($ts7 === null || (int) $ts7 < 1609459200000) {
+                    if ($ts6 && (int) $ts6 >= 1609459200000) {
+                        $offset = random_int(5, 10);
+                        $ts7    = (string) ((int) $ts6 + ($offset * 60 * 1000));
+                    }
+                }
+
+                if ($ts7 && (int) $ts7 >= 1609459200000) {
+                    $res7 = $mobileJknService->updateTaskId($kodebooking, 7, $ts7);
+                    $metaMsg7 = $res7['data']['metadata']['message'] ?? ($res7['metadata']['message'] ?? '');
+                    if (($res7['success'] ?? false) || (is_string($metaMsg7) && strpos($metaMsg7, 'sudah ada') !== false)) {
+                        $tasksSent[] = 7;
+                    } else {
+                        $errors[] = "Task 7: " . ($res7['error'] ?? $metaMsg7 ?? 'Gagal');
+                    }
+                }
+            }
+
+            // Refresh cache
+            $syncRes = $this->syncSinglePatient($kodebooking, $noRawat);
+
+            $msg = ! empty($tasksSent)
+                ? "Berhasil mengirim Task ID: " . implode(', ', $tasksSent)
+                : (empty($errors) ? "Semua Task ID sudah sesuai dan tercatat di BPJS" : implode('; ', $errors));
+
+            return [
+                'success'    => ! empty($tasksSent) || empty($errors),
+                'is_batal'   => false,
+                'message'    => $msg,
+                'tasks_sent' => $tasksSent,
+                'errors'     => $errors,
+                'patient'    => $syncRes['patient'] ?? null,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Get cancelled patients for a given date with their Task 99 status
+     */
+    public function getCancelledPatientsByDate(string $tanggalFrom, ?string $tanggalTo = null): array
+    {
+        $kdPj = config('mobilejkn.kd_pj', 'BPJ');
+        $isRange = ! empty($tanggalTo) && $tanggalTo !== $tanggalFrom;
+        $endDate = $isRange ? $tanggalTo : $tanggalFrom;
+
+        // Query RegPeriksa cancelled patients
+        $query = RegPeriksa::with([
+            'referensiMobilejknBpjs',
+            'pasien',
+            'poliklinik',
+            'dokter',
+        ])
+        ->where('kd_pj', $kdPj)
+        ->where(function ($q) {
+            $q->where('stts', 'Batal')
+              ->orWhereHas('referensiMobilejknBpjs', function ($refQ) {
+                  $refQ->where('status', 'Batal');
+              });
+        });
+
+        if ($isRange) {
+            $query->whereBetween('tgl_registrasi', [$tanggalFrom, $endDate]);
+        } else {
+            $query->where('tgl_registrasi', $tanggalFrom);
+        }
+
+        $regs = $query->orderBy('tgl_registrasi')->get();
+
+        // Also check ReferensiMobilejknBpjsBatal
+        $batalQuery = ReferensiMobilejknBpjsBatal::query();
+        if ($isRange) {
+            $batalQuery->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(tanggalbatal)'), [$tanggalFrom, $endDate]);
+        } else {
+            $batalQuery->whereDate('tanggalbatal', $tanggalFrom);
+        }
+        $batalTable = $batalQuery->get();
+        $batalRawats = $batalTable->pluck('no_rawat_batal')->filter()->toArray();
+
+        if (! empty($batalRawats)) {
+            $additionalRegs = RegPeriksa::with([
+                'referensiMobilejknBpjs',
+                'pasien',
+                'poliklinik',
+                'dokter',
+            ])
+            ->whereIn('no_rawat', $batalRawats)
+            ->get();
+
+            $regs = $regs->merge($additionalRegs)->unique('no_rawat');
+        }
+
+        // Get visits cache for Task 99 check
+        $kodeBookings = $regs->map(function ($r) {
+            return $r->referensiMobilejknBpjs?->nobooking ?? $r->no_rawat;
+        })->filter()->toArray();
+
+        $visits = BpjsPatientVisit::whereIn('kodebooking', $kodeBookings)->get()->keyBy('kodebooking');
+
+        $resultList = [];
+        $sudahKirimCount = 0;
+        $belumKirimCount = 0;
+
+        foreach ($regs as $r) {
+            $kb = $r->referensiMobilejknBpjs?->nobooking ?? $r->no_rawat;
+            $visit = $visits->get($kb);
+            $hasTask99 = false;
+
+            if ($visit && ! empty($visit->task_data) && is_array($visit->task_data)) {
+                foreach ($visit->task_data as $td) {
+                    if (isset($td['taskid']) && (int) $td['taskid'] === 99) {
+                        $hasTask99 = true;
+                        break;
+                    }
+                }
+            }
+
+            $isSudahKirim = $hasTask99 || ($r->referensiMobilejknBpjs?->statuskirim === 'Sudah');
+
+            if ($isSudahKirim) {
+                $sudahKirimCount++;
+            } else {
+                $belumKirimCount++;
+            }
+
+            $resultList[] = [
+                'no_rawat'        => $r->no_rawat,
+                'kodebooking'     => $kb,
+                'no_rkm_medis'    => $r->no_rkm_medis,
+                'nm_pasien'       => $r->pasien?->nm_pasien ?? '-',
+                'nm_poli'         => $r->poliklinik?->nm_poli ?? '-',
+                'nm_dokter'       => $r->dokter?->nm_dokter ?? '-',
+                'stts'            => $r->stts,
+                'tgl_registrasi'  => $r->tgl_registrasi ? Carbon::parse($r->tgl_registrasi)->format('Y-m-d') : '-',
+                'status_kirim_99' => $isSudahKirim ? 'Sudah' : 'Belum',
+                'is_sent_99'      => $isSudahKirim,
+            ];
+        }
+
+        $labelTanggal = $isRange ? "{$tanggalFrom} s/d {$endDate}" : $tanggalFrom;
+
+        return [
+            'tanggal'     => $labelTanggal,
+            'date_from'   => $tanggalFrom,
+            'date_to'     => $endDate,
+            'total'       => count($resultList),
+            'sudah_kirim' => $sudahKirimCount,
+            'belum_kirim' => $belumKirimCount,
+            'data'        => $resultList,
+        ];
+    }
+
+    /**
+     * Send Task 99 in batch for all cancelled patients in a given date or date range
+     */
+    public function sendCancelledPatientsByDate(string $tanggalFrom, ?string $tanggalTo = null, bool $force = false): array
+    {
+        $preview = $this->getCancelledPatientsByDate($tanggalFrom, $tanggalTo);
+        $candidates = $preview['data'] ?? [];
+
+        $targets = array_filter($candidates, function ($item) use ($force) {
+            return $force || ! $item['is_sent_99'];
+        });
+
+        $mobileJknService = app(MobileJknService::class);
+        $successCount = 0;
+        $failedCount = 0;
+        $results = [];
+
+        foreach ($targets as $target) {
+            $kb = $target['kodebooking'];
+            $noRawat = $target['no_rawat'];
+            $nowStr = (string) (now()->timestamp * 1000);
+
+            try {
+                $res = $mobileJknService->updateTaskId($kb, 99, $nowStr);
+                $metaMsg = $res['data']['metadata']['message'] ?? ($res['metadata']['message'] ?? ($res['message'] ?? ''));
+
+                $isAcceptable = is_string($metaMsg) && (
+                    strpos($metaMsg, 'Ok') !== false ||
+                    strpos($metaMsg, 'sudah ada') !== false ||
+                    strpos(strtolower($metaMsg), 'batal') !== false ||
+                    strpos($metaMsg, 'tidak ditemukan') !== false
+                );
+
+                $isSuccess = ($res['success'] ?? false) || $isAcceptable;
+
+                if ($isSuccess) {
+                    $successCount++;
+
+                    // Update DB
+                    RegPeriksa::where('no_rawat', $noRawat)->where('stts', '!=', 'Batal')->update(['stts' => 'Batal']);
+
+                    ReferensiMobilejknBpjs::where('nobooking', $kb)
+                        ->orWhere('no_rawat', $noRawat)
+                        ->update([
+                            'status'      => 'Batal',
+                            'statuskirim' => 'Sudah',
+                        ]);
+
+                    ReferensiMobilejknBpjsBatal::where('nobooking', $kb)
+                        ->orWhere('no_rawat_batal', $noRawat)
+                        ->update(['statuskirim' => 'Sudah']);
+
+                    // Sync cache
+                    try {
+                        $mobileJknService->getListTask($kb);
+                    } catch (\Throwable $e) {}
+                } else {
+                    $failedCount++;
+                }
+
+                $results[] = [
+                    'kodebooking' => $kb,
+                    'no_rawat'    => $noRawat,
+                    'nm_pasien'   => $target['nm_pasien'],
+                    'success'     => $isSuccess,
+                    'message'     => $isSuccess ? 'Task 99 berhasil' : ($res['error'] ?? $metaMsg ?? 'Gagal kirim'),
+                ];
+
+                usleep(100000); // 100ms safe delay between BPJS hits
+            } catch (\Throwable $e) {
+                $failedCount++;
+                $results[] = [
+                    'kodebooking' => $kb,
+                    'no_rawat'    => $noRawat,
+                    'nm_pasien'   => $target['nm_pasien'],
+                    'success'     => false,
+                    'message'     => $e->getMessage(),
+                ];
+            }
+        }
+
+        return [
+            'success'         => true,
+            'tanggal'         => $preview['tanggal'],
+            'date_from'       => $tanggalFrom,
+            'date_to'         => $tanggalTo ?: $tanggalFrom,
+            'total_processed' => count($targets),
+            'success_count'   => $successCount,
+            'failed_count'    => $failedCount,
+            'details'         => $results,
+        ];
+    }
+
+    /**
+     * Get normal (non-cancelled) patients for a date range with their task completeness
+     */
+    public function getNormalPatientsForBatch(string $dateFrom, ?string $dateTo = null): array
+    {
+        $kdPj = config('mobilejkn.kd_pj', 'BPJ');
+        $excludePoli = config('mobilejkn.exclude_poli', 'HD,IGD,IGDK');
+        $excludePoliArray = array_filter(explode(',', $excludePoli));
+
+        $isRange = ! empty($dateTo) && $dateTo !== $dateFrom;
+        $endDate = $isRange ? $dateTo : $dateFrom;
+
+        $query = RegPeriksa::with([
+            'referensiMobilejknBpjs',
+            'pasien',
+            'poliklinik',
+            'dokter',
+            'resepObat',
+        ])
+        ->where('kd_pj', $kdPj)
+        ->where('stts', '!=', 'Batal')
+        ->whereDoesntHave('referensiMobilejknBpjs', function ($q) {
+            $q->where('status', 'Batal');
+        });
+
+        if (! empty($excludePoliArray)) {
+            $query->whereNotIn('kd_poli', $excludePoliArray);
+        }
+
+        if ($isRange) {
+            $query->whereBetween('tgl_registrasi', [$dateFrom, $endDate]);
+        } else {
+            $query->where('tgl_registrasi', $dateFrom);
+        }
+
+        $regs = $query->orderBy('tgl_registrasi')->orderBy('jam_reg')->get();
+
+        $kodeBookings = $regs->map(function ($r) {
+            return $r->referensiMobilejknBpjs?->nobooking ?? $r->no_rawat;
+        })->filter()->toArray();
+
+        $visits = BpjsPatientVisit::whereIn('kodebooking', $kodeBookings)->get()->keyBy('kodebooking');
+
+        $resultList = [];
+        $sudahLengkapCount = 0;
+        $belumLengkapCount = 0;
+
+        foreach ($regs as $r) {
+            $kb = $r->referensiMobilejknBpjs?->nobooking ?? $r->no_rawat;
+            $visit = $visits->get($kb);
+            $existingTaskIds = [];
+
+            if ($visit && ! empty($visit->task_data) && is_array($visit->task_data)) {
+                foreach ($visit->task_data as $td) {
+                    if (isset($td['taskid'])) {
+                        $existingTaskIds[] = (int) $td['taskid'];
+                    }
+                }
+            }
+
+            $hasPrescription = ($r->resepObat !== null && $r->resepObat->isNotEmpty());
+            $isComplete = false;
+            $statusTask = 'Belum Terkirim';
+
+            if (! empty($existingTaskIds)) {
+                if (in_array(3, $existingTaskIds) && in_array(4, $existingTaskIds) && in_array(5, $existingTaskIds)) {
+                    if ($hasPrescription) {
+                        if (in_array(6, $existingTaskIds) && in_array(7, $existingTaskIds)) {
+                            $isComplete = true;
+                            $statusTask = 'Lengkap (3-7)';
+                        } else {
+                            $statusTask = 'Lengkap (3-5), Farmasi Belum';
+                        }
+                    } else {
+                        $isComplete = true;
+                        $statusTask = 'Lengkap (3-5, Non-Resep)';
+                    }
+                } else {
+                    $statusTask = 'Task ' . implode(',', $existingTaskIds);
+                }
+            }
+
+            if ($isComplete) {
+                $sudahLengkapCount++;
+            } else {
+                $belumLengkapCount++;
+            }
+
+            $resultList[] = [
+                'no_rawat'        => $r->no_rawat,
+                'kodebooking'     => $kb,
+                'no_rkm_medis'    => $r->no_rkm_medis,
+                'nm_pasien'       => $r->pasien?->nm_pasien ?? '-',
+                'nm_poli'         => $r->poliklinik?->nm_poli ?? '-',
+                'nm_dokter'       => $r->dokter?->nm_dokter ?? '-',
+                'stts'            => $r->stts,
+                'tgl_registrasi'  => $r->tgl_registrasi ? Carbon::parse($r->tgl_registrasi)->format('Y-m-d') : '-',
+                'status_task'     => $statusTask,
+                'is_complete'     => $isComplete,
+                'has_resep'       => $hasPrescription,
+                'existing_tasks'  => $existingTaskIds,
+            ];
+        }
+
+        $labelTanggal = $isRange ? "{$dateFrom} s/d {$endDate}" : $dateFrom;
+
+        return [
+            'tanggal'        => $labelTanggal,
+            'date_from'      => $dateFrom,
+            'date_to'        => $endDate,
+            'total'          => count($resultList),
+            'sudah_lengkap'  => $sudahLengkapCount,
+            'belum_lengkap'  => $belumLengkapCount,
+            'data'           => $resultList,
+        ];
+    }
+
+    /**
+     * Send Task IDs in batch for a given list of normal patients
+     */
+    public function sendNormalPatientsBatchChunk(array $patients): array
+    {
+        $successCount = 0;
+        $failedCount = 0;
+        $results = [];
+
+        foreach ($patients as $item) {
+            $kb = $item['kodebooking'] ?? '';
+            $noRawat = $item['no_rawat'] ?? '';
+
+            if (empty($kb) || empty($noRawat)) {
+                continue;
+            }
+
+            try {
+                $res = $this->sendPatientTasksManually($kb, $noRawat);
+                if ($res['success']) {
+                    $successCount++;
+                } else {
+                    $failedCount++;
+                }
+
+                $results[] = [
+                    'kodebooking' => $kb,
+                    'no_rawat'    => $noRawat,
+                    'success'     => $res['success'],
+                    'message'     => $res['message'] ?? '',
+                    'tasks_sent'  => $res['tasks_sent'] ?? [],
+                ];
+
+                usleep(100000); // 100ms delay between BPJS calls
+            } catch (\Throwable $e) {
+                $failedCount++;
+                $results[] = [
+                    'kodebooking' => $kb,
+                    'no_rawat'    => $noRawat,
+                    'success'     => false,
+                    'message'     => $e->getMessage(),
+                    'tasks_sent'  => [],
+                ];
+            }
+        }
+
+        return [
+            'success'       => true,
+            'processed'     => count($patients),
+            'success_count' => $successCount,
+            'failed_count'  => $failedCount,
+            'details'       => $results,
+        ];
+    }
+
 }

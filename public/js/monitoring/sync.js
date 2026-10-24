@@ -203,6 +203,11 @@ async function syncPatientsInBackground(patients) {
         } catch (e) {
             console.error(`Error sync: ${patient.kodebooking}`, e);
         }
+        // Automatically update diagrams & KPI every 5 patients during background sync
+        if ((i + 1) % 5 === 0 && typeof window.doAjaxRefresh === 'function') {
+            window.doAjaxRefresh();
+        }
+
         if (i < patients.length - 1) {
             await new Promise(r => setTimeout(r, delayMs));
         }
@@ -211,6 +216,11 @@ async function syncPatientsInBackground(patients) {
     if (progressTitle) progressTitle.textContent = 'Sinkronisasi latar belakang selesai!';
     if (progressBar) progressBar.style.width = '100%';
     if (progressText) progressText.textContent = '100%';
+
+    // Trigger auto-refresh of all diagrams, timeline, and KPI cards with freshly synced data
+    if (typeof window.doAjaxRefresh === 'function') {
+        window.doAjaxRefresh();
+    }
 
     setTimeout(() => {
         if (progressContainer) progressContainer.classList.add('hidden');

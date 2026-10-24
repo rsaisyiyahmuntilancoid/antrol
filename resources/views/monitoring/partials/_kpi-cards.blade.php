@@ -22,7 +22,7 @@
             <i class="fas fa-clock"></i>
         </div>
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Med. Tunggu Poli</h3>
-        <p class="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-3">
+        <p class="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-3" id="kpi-waktu-tunggu-poli">
             @php $wtp = $analytics['global_stats']['waktu_tunggu_poli']; @endphp
             @if($wtp['count'] > 0)
             @if($wtp['median'] < 0) <span class="text-rose-500">{{ $wtp['median'] }}</span><span
@@ -36,9 +36,7 @@
         </p>
         <div class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
             <span>Task 3 &rarr; 4 (Admisi-Poli)</span>
-            @if($wtp['count'] > 0)
-            <span class="text-slate-400">n={{ $wtp['count'] }}</span>
-            @endif
+            <span class="text-slate-400" id="kpi-count-waktu-tunggu-poli">@if($wtp['count'] > 0)n={{ $wtp['count'] }}@endif</span>
         </div>
     </div>
 
@@ -49,7 +47,7 @@
             <i class="fas fa-user-md"></i>
         </div>
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Med. Layan Poli</h3>
-        <p class="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-3">
+        <p class="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-3" id="kpi-waktu-layan-poli">
             @php $wlp = $analytics['global_stats']['waktu_layan_poli']; @endphp
             @if($wlp['count'] > 0)
             @if($wlp['median'] < 0) <span class="text-rose-500">{{ $wlp['median'] }}</span><span
@@ -63,9 +61,7 @@
         </p>
         <div class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
             <span>Task 4 &rarr; 5 (Pemeriksaan)</span>
-            @if($wlp['count'] > 0)
-            <span class="text-slate-400">n={{ $wlp['count'] }}</span>
-            @endif
+            <span class="text-slate-400" id="kpi-count-waktu-layan-poli">@if($wlp['count'] > 0)n={{ $wlp['count'] }}@endif</span>
         </div>
     </div>
 
@@ -76,7 +72,7 @@
             <i class="fas fa-prescription-bottle-alt"></i>
         </div>
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Med. Tunggu Farmasi</h3>
-        <p class="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-3">
+        <p class="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-3" id="kpi-waktu-tunggu-farmasi">
             @php $wtf = $analytics['global_stats']['waktu_tunggu_farmasi']; @endphp
             @if($wtf['count'] > 0)
             @if($wtf['median'] < 0) <span class="text-rose-500">{{ $wtf['median'] }}</span><span
@@ -90,9 +86,7 @@
         </p>
         <div class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
             <span>Task 5 &rarr; 6 (Buat Resep)</span>
-            @if($wtf['count'] > 0)
-            <span class="text-slate-400">n={{ $wtf['count'] }}</span>
-            @endif
+            <span class="text-slate-400" id="kpi-count-waktu-tunggu-farmasi">@if($wtf['count'] > 0)n={{ $wtf['count'] }}@endif</span>
         </div>
     </div>
 
@@ -103,7 +97,7 @@
             <i class="fas fa-capsules"></i>
         </div>
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Med. Layan Farmasi</h3>
-        <p class="text-3xl font-bold text-teal-600 dark:text-teal-400 mt-3">
+        <p class="text-3xl font-bold text-teal-600 dark:text-teal-400 mt-3" id="kpi-waktu-layan-farmasi">
             @php $wlf = $analytics['global_stats']['waktu_layan_farmasi']; @endphp
             @if($wlf['count'] > 0)
             @if($wlf['median'] < 0) <span class="text-rose-500">{{ $wlf['median'] }}</span><span
@@ -117,9 +111,7 @@
         </p>
         <div class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
             <span>Task 6 &rarr; 7 (Racik Obat)</span>
-            @if($wlf['count'] > 0)
-            <span class="text-slate-400">n={{ $wlf['count'] }}</span>
-            @endif
+            <span class="text-slate-400" id="kpi-count-waktu-layan-farmasi">@if($wlf['count'] > 0)n={{ $wlf['count'] }}@endif</span>
         </div>
     </div>
 
@@ -130,7 +122,7 @@
             <i class="fas fa-hospital"></i>
         </div>
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Med. Total RS</h3>
-        <p class="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-3">
+        <p class="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-3" id="kpi-total-waktu-rs">
             @php $twr = $analytics['global_stats']['total_waktu_rs']; @endphp
             @if($twr['count'] > 0)
             @if($twr['median'] < 0) <span class="text-rose-500">{{ $twr['median'] }}</span><span
@@ -144,9 +136,7 @@
         </p>
         <div class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-2">
             <span>Task 3 &rarr; 7 (Admisi-Selesai)</span>
-            @if($twr['count'] > 0)
-            <span class="text-slate-400">n={{ $twr['count'] }}</span>
-            @endif
+            <span class="text-slate-400" id="kpi-count-total-waktu-rs">@if($twr['count'] > 0)n={{ $twr['count'] }}@endif</span>
         </div>
     </div>
 </div>

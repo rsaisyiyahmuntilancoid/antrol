@@ -91,6 +91,11 @@ Route::prefix('v1')->group(function () {
             Route::get('/bpjs-dashboard/bulan', [FlowAnalyticsController::class, 'getBpjsDashboardBulan']);
             Route::post('/sync-patient', [FlowAnalyticsController::class, 'syncPatient']);
             Route::post('/sync-batch', [FlowAnalyticsController::class, 'syncBatch']);
+            Route::post('/send-patient-tasks', [FlowAnalyticsController::class, 'sendPatientTasks']);
+            Route::get('/cancelled-patients', [FlowAnalyticsController::class, 'getCancelledPatients']);
+            Route::post('/send-cancel-tasks-date', [FlowAnalyticsController::class, 'sendCancelTasksDate']);
+            Route::get('/normal-batch-preview', [FlowAnalyticsController::class, 'getNormalBatchPreview']);
+            Route::post('/send-normal-batch-chunk', [FlowAnalyticsController::class, 'sendNormalBatchChunk']);
             Route::post('/sync-today', [FlowAnalyticsController::class, 'syncToday']);
             Route::post('/sync-range', [FlowAnalyticsController::class, 'syncRange']);
             Route::get('/sync-status', [FlowAnalyticsController::class, 'syncStatus']);

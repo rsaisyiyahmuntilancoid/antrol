@@ -8,15 +8,37 @@ use Exception;
 
 class ExternalAuthService
 {
-    public const SPV_USERNAME = 'spv';
-    public const SPV_PASSWORD = 'b!sm!llah*';
-    public const SPV_TOKEN = 'spv-internal-access-token';
-
-    protected $apiUrl;
+    protected string $apiUrl;
+    protected ?string $spvUsername;
+    protected ?string $spvPassword;
+    protected ?string $spvToken;
 
     public function __construct()
     {
-        $this->apiUrl = rtrim(config('external_auth.api_url'), '/');
+        $this->apiUrl = rtrim((string) config('external_auth.api_url'), '/');
+        $this->spvUsername = config('external_auth.spv_username');
+        $this->spvPassword = config('external_auth.spv_password');
+        $this->spvToken = config('external_auth.spv_token');
+    }
+
+    /**
+     * Get supervisor username
+     *
+     * @return string|null
+     */
+    public function getSpvUsername(): ?string
+    {
+        return $this->spvUsername;
+    }
+
+    /**
+     * Get supervisor token
+     *
+     * @return string|null
+     */
+    public function getSpvToken(): ?string
+    {
+        return $this->spvToken;
     }
 
     /**
@@ -27,7 +49,30 @@ class ExternalAuthService
      */
     public function isSpvToken(string $token): bool
     {
-        return $token === self::SPV_TOKEN;
+        if (empty($this->spvToken)) {
+            return false;
+        }
+
+        return hash_equals($this->spvToken, $token);
+    }
+
+    /**
+     * Check if given credentials match configured supervisor credentials
+     *
+     * @param string $username
+     * @param string $password
+     * @return bool
+     */
+    protected function isSpvCredentials(string $username, string $password): bool
+    {
+        if (empty($this->spvUsername) || empty($this->spvPassword) || empty($this->spvToken)) {
+            return false;
+        }
+
+        $inputUsername = strtolower(trim($username));
+        $targetUsername = strtolower(trim($this->spvUsername));
+
+        return hash_equals($targetUsername, $inputUsername) && hash_equals($this->spvPassword, $password);
     }
 
     /**
@@ -40,12 +85,12 @@ class ExternalAuthService
     public function login(string $username, string $password): array
     {
         // Bypass khusus supervisor (spv) tanpa perlu hit API eksternal
-        if (strtolower(trim($username)) === self::SPV_USERNAME && $password === self::SPV_PASSWORD) {
+        if ($this->isSpvCredentials($username, $password)) {
             Log::info('Supervisor local bypass login authenticated', ['username' => $username]);
 
             return [
                 'success' => true,
-                'token' => self::SPV_TOKEN,
+                'token' => $this->spvToken,
                 'message' => 'Login berhasil.',
             ];
         }
@@ -125,7 +170,7 @@ class ExternalAuthService
                 'success' => true,
                 'user' => [
                     'id' => 'spv',
-                    'username' => self::SPV_USERNAME,
+                    'username' => $this->spvUsername ?: 'spv',
                     'name' => 'Supervisor',
                     'role' => 'supervisor',
                     'token' => $token,

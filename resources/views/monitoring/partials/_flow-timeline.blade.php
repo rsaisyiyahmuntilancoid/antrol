@@ -18,7 +18,7 @@
         <div class="md:col-span-1 flex flex-col items-center justify-center text-center">
             <div class="h-0.5 w-full bg-blue-500/20 hidden md:block"></div>
             @php $v = $analytics['global_stats']['waktu_tunggu_poli']; @endphp
-            <span
+            <span id="timeline-waktu-tunggu-poli"
                 class="flow-duration px-3 py-1.5 rounded-full {{ $v['count'] > 0 && $v['median'] < 0 ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' }} font-bold text-xs shadow-sm mt-2 md:mt-0">
                 {{ $v['count'] > 0 ? $v['median'].' m' : 'N/A' }}
             </span>
@@ -38,7 +38,7 @@
         <div class="md:col-span-1 flex flex-col items-center justify-center text-center">
             <div class="h-0.5 w-full bg-emerald-500/20 hidden md:block"></div>
             @php $v = $analytics['global_stats']['waktu_layan_poli']; @endphp
-            <span
+            <span id="timeline-waktu-layan-poli"
                 class="flow-duration px-3 py-1.5 rounded-full {{ $v['count'] > 0 && $v['median'] < 0 ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300' : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' }} font-bold text-xs shadow-sm mt-2 md:mt-0">
                 {{ $v['count'] > 0 ? $v['median'].' m' : 'N/A' }}
             </span>
@@ -58,7 +58,7 @@
         <div class="md:col-span-1 flex flex-col items-center justify-center text-center">
             <div class="h-0.5 w-full bg-indigo-500/20 hidden md:block"></div>
             @php $v = $analytics['global_stats']['waktu_tunggu_farmasi']; @endphp
-            <span
+            <span id="timeline-waktu-tunggu-farmasi"
                 class="flow-duration px-3 py-1.5 rounded-full {{ $v['count'] > 0 && $v['median'] < 0 ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300' : 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300' }} font-bold text-xs shadow-sm mt-2 md:mt-0">
                 {{ $v['count'] > 0 ? $v['median'].' m' : 'N/A' }}
             </span>
@@ -78,7 +78,7 @@
         <div class="md:col-span-1 flex flex-col items-center justify-center text-center">
             <div class="h-0.5 w-full bg-purple-500/20 hidden md:block"></div>
             @php $v = $analytics['global_stats']['waktu_layan_farmasi']; @endphp
-            <span
+            <span id="timeline-waktu-layan-farmasi"
                 class="flow-duration px-3 py-1.5 rounded-full {{ $v['count'] > 0 && $v['median'] < 0 ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300' : 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300' }} font-bold text-xs shadow-sm mt-2 md:mt-0">
                 {{ $v['count'] > 0 ? $v['median'].' m' : 'N/A' }}
             </span>

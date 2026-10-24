@@ -566,4 +566,122 @@ class FlowAnalyticsController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Send Task IDs manually for a single patient
+     */
+    public function sendPatientTasks(Request $request): JsonResponse
+    {
+        $request->validate([
+            'kodebooking' => 'required|string',
+            'no_rawat'    => 'required|string',
+        ]);
+
+        try {
+            $result = $this->flowAnalyticsService->sendPatientTasksManually(
+                $request->kodebooking,
+                $request->no_rawat
+            );
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get cancelled patients for a given date
+     */
+    public function getCancelledPatients(Request $request): JsonResponse
+    {
+        $dateFrom = $request->get('date_from', $request->get('date', Carbon::today()->format('Y-m-d')));
+        $dateTo   = $request->get('date_to', $dateFrom);
+
+        try {
+            $data = $this->flowAnalyticsService->getCancelledPatientsByDate($dateFrom, $dateTo);
+
+            return response()->json([
+                'success' => true,
+                'data'    => $data,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Send Task 99 in batch for cancelled patients on a given date or date range
+     */
+    public function sendCancelTasksDate(Request $request): JsonResponse
+    {
+        $dateFrom = $request->input('date_from', $request->input('date', Carbon::today()->format('Y-m-d')));
+        $dateTo   = $request->input('date_to', $dateFrom);
+        $force    = (bool) $request->input('force', false);
+
+        try {
+            $result = $this->flowAnalyticsService->sendCancelledPatientsByDate($dateFrom, $dateTo, $force);
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get preview of normal patients for batch Task ID sending
+     */
+    public function getNormalBatchPreview(Request $request): JsonResponse
+    {
+        $dateFrom = $request->get('date_from', $request->get('date', Carbon::today()->format('Y-m-d')));
+        $dateTo   = $request->get('date_to', $dateFrom);
+
+        try {
+            $data = $this->flowAnalyticsService->getNormalPatientsForBatch($dateFrom, $dateTo);
+
+            return response()->json([
+                'success' => true,
+                'data'    => $data,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Send Task IDs in batch chunk for normal patients
+     */
+    public function sendNormalBatchChunk(Request $request): JsonResponse
+    {
+        $request->validate([
+            'patients' => 'required|array|min:1',
+            'patients.*.kodebooking' => 'required|string',
+            'patients.*.no_rawat'    => 'required|string',
+        ]);
+
+        $patients = $request->input('patients', []);
+
+        try {
+            $result = $this->flowAnalyticsService->sendNormalPatientsBatchChunk($patients);
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
 }
