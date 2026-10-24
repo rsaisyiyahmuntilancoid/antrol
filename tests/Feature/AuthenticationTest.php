@@ -277,12 +277,12 @@ class AuthenticationTest extends TestCase
         Http::fake();
 
         $response = $this->from('/login')->post('/login', [
-            'username' => 'spv',
-            'password' => 'b!sm!llah*',
+            'username' => config('external_auth.spv_username', 'spv'),
+            'password' => config('external_auth.spv_password', 'b!sm!llah*'),
         ]);
 
         $response->assertRedirect('/');
-        $this->assertEquals(\App\Services\ExternalAuthService::SPV_TOKEN, session('auth_token'));
+        $this->assertEquals(config('external_auth.spv_token'), session('auth_token'));
         $this->assertEquals('spv', session('auth_user.username'));
 
         // Verify that external HTTP API was NOT called
@@ -297,14 +297,14 @@ class AuthenticationTest extends TestCase
         Http::fake();
 
         $response = $this->postJson('/api/v1/login', [
-            'username' => 'spv',
-            'password' => 'b!sm!llah*',
+            'username' => config('external_auth.spv_username', 'spv'),
+            'password' => config('external_auth.spv_password', 'b!sm!llah*'),
         ]);
 
         $response->assertStatus(200);
         $response->assertJson([
             'success' => true,
-            'token' => \App\Services\ExternalAuthService::SPV_TOKEN,
+            'token' => config('external_auth.spv_token'),
             'user' => [
                 'username' => 'spv',
             ],
@@ -351,7 +351,7 @@ class AuthenticationTest extends TestCase
         Http::fake();
 
         session([
-            'auth_token' => \App\Services\ExternalAuthService::SPV_TOKEN,
+            'auth_token' => config('external_auth.spv_token'),
             'auth_user' => [
                 'id' => 'spv',
                 'username' => 'spv',
@@ -366,5 +366,36 @@ class AuthenticationTest extends TestCase
 
         // External logout API should not be called for SPV
         Http::assertNothingSent();
+    }
+
+
+    /**
+     * Test SPV bypass is disabled when credentials are not configured.
+     */
+    public function test_spv_bypass_disabled_when_credentials_not_configured(): void
+    {
+        config(['external_auth.spv_password' => null]);
+
+        $baseUrl = config('external_auth.api_url');
+        Http::fake([
+            $baseUrl . '/api/core/sign' => Http::response([
+                'statusCode' => 1,
+                'message' => 'Username atau password salah',
+            ], 401),
+        ]);
+
+        $response = $this->from('/login')->post('/login', [
+            'username' => 'spv',
+            'password' => 'b!sm!llah*',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors(['auth_error']);
+        $this->assertNull(session('auth_token'));
+
+        // Verify external sign was attempted because local bypass was disabled
+        Http::assertSent(function ($request) use ($baseUrl) {
+            return $request->url() === $baseUrl . '/api/core/sign';
+        });
     }
 }

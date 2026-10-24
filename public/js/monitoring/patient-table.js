@@ -2,7 +2,8 @@
  * Patient Registry Table Module
  * Handles search filtering, clinic/status filtering, server-side AJAX pagination,
  * dynamic 'menampilkan X dari total Y' indicator, CSV exporting, anomaly scrolling,
- * and background auto-refreshing.
+ * background auto-refreshing, manual task ID dispatching, batch cancellation sending,
+ * and web-based batch task ID sending for normal patients.
  */
 
 let currentPage = 1;
@@ -12,6 +13,41 @@ let filteredTotal = 0;
 let totalPages = 1;
 let isLoadingPatients = false;
 let searchDebounceTimer = null;
+
+let isNormalBatchRunning = false;
+let normalBatchPatientsQueue = [];
+
+function showToast(message, type = 'success') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'fixed top-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none max-w-sm w-full';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    const bg = type === 'success' ? 'bg-emerald-600 text-white' : (type === 'warning' ? 'bg-amber-500 text-white' : 'bg-rose-600 text-white');
+    const icon = type === 'success' ? 'fa-check-circle' : (type === 'warning' ? 'fa-exclamation-triangle' : 'fa-times-circle');
+
+    toast.className = `${bg} px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-xs font-bold pointer-events-auto transition-all duration-300 transform translate-y-2 opacity-0`;
+    toast.innerHTML = `
+        <i class="fas ${icon} text-base flex-shrink-0"></i>
+        <span class="flex-grow leading-snug">${message}</span>
+        <button class="opacity-75 hover:opacity-100 ml-1" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+    }, 10);
+
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-4');
+        setTimeout(() => toast.remove(), 300);
+    }, 4500);
+}
 
 function getStatusBadgeMarkup(status, waktuBatal) {
     if (typeof getStatusBadgeHtml === 'function') {
@@ -65,6 +101,26 @@ function renderPatientRowHtml(p) {
         ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
         : 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400';
 
+    const isBatal = (p.status === 'Batal' || p.status === 'Tidak Hadir / Batal');
+    const isLengkap = (p.status === 'Lengkap (3,4,5,6,7)');
+
+    let sendBtnClass = 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white border-emerald-200/80 dark:border-emerald-900/60';
+    let sendBtnIcon = 'fa-paper-plane';
+    let sendBtnText = 'Kirim';
+    let sendBtnTitle = 'Kirim Manual Task ID Pasien';
+
+    if (isBatal) {
+        sendBtnClass = 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-600 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white border-rose-200/80 dark:border-rose-900/60';
+        sendBtnIcon = 'fa-user-slash';
+        sendBtnText = 'Kirim 99';
+        sendBtnTitle = 'Kirim Task 99 (Batal)';
+    } else if (isLengkap) {
+        sendBtnClass = 'text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-700 hover:text-white dark:hover:bg-slate-700 dark:hover:text-white border-slate-200/80 dark:border-slate-700';
+        sendBtnIcon = 'fa-redo-alt';
+        sendBtnText = 'Ulang';
+        sendBtnTitle = 'Kirim Ulang Task ID';
+    }
+
     return `
         <tr class="patient-row hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group cursor-pointer"
             onclick="showPatientDetail('${p.kode_booking || ''}')"
@@ -109,11 +165,21 @@ function renderPatientRowHtml(p) {
                     <span class="sync-status badge ${syncBadgeClass} text-[9px]">${syncBadgeText}</span>
                 </div>
             </td>
-            <td class="px-4 py-3.5 text-center" onclick="event.stopPropagation()">
-                <button onclick="showPatientDetail('${p.kode_booking || ''}')"
-                    class="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-500/10">
-                    <i class="fas fa-search-plus text-xs"></i> Detail
-                </button>
+            <td class="px-3 py-3 text-center" onclick="event.stopPropagation()">
+                <div class="inline-flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/70 shadow-xs">
+                    <button onclick="showPatientDetail('${p.kode_booking || ''}')"
+                        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white border border-slate-200/80 dark:border-slate-700 shadow-xs transition-all duration-150 transform active:scale-95 group"
+                        title="Lihat Detail Pelayanan Pasien">
+                        <i class="fas fa-search-plus text-[11px] opacity-80 group-hover:opacity-100"></i>
+                        <span>Detail</span>
+                    </button>
+                    <button onclick="sendPatientTasksManual('${p.kode_booking || ''}', '${p.no_rawat || ''}', this)"
+                        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold ${sendBtnClass} shadow-xs transition-all duration-150 transform active:scale-95 group border"
+                        title="${sendBtnTitle}">
+                        <i class="fas ${sendBtnIcon} text-[11px]"></i>
+                        <span>${sendBtnText}</span>
+                    </button>
+                </div>
             </td>
         </tr>
     `;
@@ -149,7 +215,6 @@ function renderPageButtons(pagesCount) {
             pagesContainer.appendChild(createPageBtn(p));
         }
     } else {
-        // First page
         pagesContainer.appendChild(createPageBtn(1));
 
         if (currentPage > 3) {
@@ -167,7 +232,6 @@ function renderPageButtons(pagesCount) {
             pagesContainer.appendChild(createEllipsis());
         }
 
-        // Last page
         pagesContainer.appendChild(createPageBtn(pagesCount));
     }
 }
@@ -182,7 +246,6 @@ function updatePaginationControls() {
     const startIdx = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const endIdx = Math.min(currentPage * pageSize, totalItems);
 
-    // Update bottom pagination numbers info
     const infoStart = document.getElementById('pagination-info-start');
     const infoEnd = document.getElementById('pagination-info-end');
     const infoTotal = document.getElementById('pagination-info-total');
@@ -192,7 +255,6 @@ function updatePaginationControls() {
     if (infoEnd) infoEnd.textContent = endIdx;
     if (infoTotal) infoTotal.textContent = totalItems.toLocaleString('id-ID');
 
-    // Check if filter is active
     const searchVal = document.getElementById('search-patient')?.value.trim() || '';
     const clinicVal = document.getElementById('filter-clinic')?.value || '';
     const statusVal = document.getElementById('filter-status')?.value || '';
@@ -208,7 +270,6 @@ function updatePaginationControls() {
         }
     }
 
-    // Update top header badge: "Menampilkan 1 - 25 dari X data pasien"
     const headerRange = document.getElementById('header-info-range');
     const headerTotal = document.getElementById('header-info-total');
     const headerGrand = document.getElementById('header-info-grand');
@@ -229,13 +290,6 @@ function updatePaginationControls() {
         }
     }
 
-    // Support legacy IDs if any external script touches them
-    const legacyBadgeRange = document.getElementById('pagination-info-badge');
-    const legacyBadgeTotal = document.getElementById('total-patients-badge');
-    if (legacyBadgeRange) legacyBadgeRange.textContent = totalItems === 0 ? '0' : `${startIdx} - ${endIdx}`;
-    if (legacyBadgeTotal) legacyBadgeTotal.textContent = totalItems.toLocaleString('id-ID');
-
-    // Show/hide empty state
     const emptyAlert = document.getElementById('no-patients-found');
     const paginationBar = document.getElementById('pagination-controls-bar');
 
@@ -247,7 +301,6 @@ function updatePaginationControls() {
         if (paginationBar) paginationBar.classList.remove('hidden');
     }
 
-    // Button disabled states
     const btnFirst = document.getElementById('btn-page-first');
     const btnPrev = document.getElementById('btn-page-prev');
     const btnNext = document.getElementById('btn-page-next');
@@ -261,9 +314,6 @@ function updatePaginationControls() {
     renderPageButtons(totalPages);
 }
 
-/**
- * Fetch patient page from server with current active filters
- */
 function fetchPatientsPage(page = 1) {
     if (isLoadingPatients) return;
     isLoadingPatients = true;
@@ -322,13 +372,588 @@ function fetchPatientsPage(page = 1) {
     });
 }
 
+async function sendPatientTasksManual(kodebooking, noRawat, btnElement) {
+    if (!kodebooking && !noRawat) {
+        showToast('Data booking / No. Rawat tidak valid', 'error');
+        return;
+    }
+
+    let origHtml = '';
+    if (btnElement) {
+        origHtml = btnElement.innerHTML;
+        btnElement.disabled = true;
+        btnElement.innerHTML = '<i class="fas fa-circle-notch fa-spin text-[11px]"></i> <span>Kirim...</span>';
+    }
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const response = await fetch('/api/v1/monitoring/send-patient-tasks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken || ''
+            },
+            body: JSON.stringify({
+                kodebooking: kodebooking,
+                no_rawat: noRawat
+            })
+        });
+
+        const res = await response.json();
+
+        if (res.success) {
+            showToast(res.message || 'Task ID berhasil diproses', 'success');
+
+            if (res.patient) {
+                const row = document.querySelector(`tr.patient-row[data-rawat="${noRawat}"]`) ||
+                            document.querySelector(`tr.patient-row[data-kodebooking="${kodebooking}"]`);
+                if (row) {
+                    const tempTable = document.createElement('tbody');
+                    tempTable.innerHTML = renderPatientRowHtml(res.patient);
+                    const newRow = tempTable.firstElementChild;
+                    if (newRow) {
+                        row.replaceWith(newRow);
+                    }
+                }
+            }
+        } else {
+            showToast(res.message || 'Gagal mengirim Task ID', 'error');
+            if (btnElement) {
+                btnElement.disabled = false;
+                btnElement.innerHTML = origHtml;
+            }
+        }
+    } catch (err) {
+        console.error('[Send Patient Tasks Error]', err);
+        showToast('Terjadi kesalahan koneksi saat mengirim Task ID', 'error');
+        if (btnElement) {
+            btnElement.disabled = false;
+            btnElement.innerHTML = origHtml;
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODAL PASIEN BATAL (TASK 99)
+// ═══════════════════════════════════════════════════════════════
+function openCancelTasksModal() {
+    const modal = document.getElementById('modal-cancel-tasks');
+    if (!modal) return;
+
+    const fromVal = typeof dateFrom !== 'undefined' ? dateFrom : (document.querySelector('input[name="date_from"]')?.value || '');
+    const toVal = typeof dateTo !== 'undefined' ? dateTo : (document.querySelector('input[name="date_to"]')?.value || fromVal);
+
+    const dateFromInput = document.getElementById('cancel-task-date-from');
+    const dateToInput = document.getElementById('cancel-task-date-to');
+
+    if (dateFromInput && fromVal) dateFromInput.value = fromVal;
+    if (dateToInput && toVal) dateToInput.value = toVal;
+
+    modal.classList.remove('hidden');
+    fetchCancelledPatientsPreview();
+}
+
+function closeCancelTasksModal() {
+    const modal = document.getElementById('modal-cancel-tasks');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function fetchCancelledPatientsPreview() {
+    const fromInput = document.getElementById('cancel-task-date-from');
+    const toInput = document.getElementById('cancel-task-date-to');
+
+    const dateFromVal = fromInput ? fromInput.value : '';
+    const dateToVal = toInput ? toInput.value : dateFromVal;
+
+    if (!dateFromVal) {
+        showToast('Pilih tanggal awal terlebih dahulu', 'warning');
+        return;
+    }
+
+    const tbody = document.getElementById('cancel-tasks-tbody');
+    const btnCheck = document.getElementById('btn-check-cancelled');
+    const btnExec = document.getElementById('btn-execute-cancel');
+
+    if (btnCheck) {
+        btnCheck.disabled = true;
+        btnCheck.innerHTML = '<i class="fas fa-circle-notch fa-spin text-xs"></i> Memuat...';
+    }
+
+    const rangeLabel = (dateFromVal === dateToVal || !dateToVal) ? dateFromVal : `${dateFromVal} s/d ${dateToVal}`;
+
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-4 py-8 text-center text-slate-400 font-semibold">
+                    <i class="fas fa-circle-notch fa-spin text-blue-500 mr-1.5"></i> Mengambil data pasien batal (${rangeLabel})...
+                </td>
+            </tr>
+        `;
+    }
+
+    try {
+        const res = await fetch(`/api/v1/monitoring/cancelled-patients?date_from=${dateFromVal}&date_to=${dateToVal}`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const json = await res.json();
+
+        if (btnCheck) {
+            btnCheck.disabled = false;
+            btnCheck.innerHTML = '<i class="fas fa-search text-xs"></i> Cek Pasien Batal';
+        }
+
+        if (!json.success || !json.data) {
+            if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-rose-500 font-semibold">${json.message || 'Gagal memuat data'}</td></tr>`;
+            return;
+        }
+
+        const d = json.data;
+        const patients = d.data || [];
+
+        const totalEl = document.getElementById('modal-stat-total');
+        const belumEl = document.getElementById('modal-stat-belum');
+        const sudahEl = document.getElementById('modal-stat-sudah');
+
+        if (totalEl) totalEl.textContent = d.total || 0;
+        if (belumEl) belumEl.textContent = d.belum_kirim || 0;
+        if (sudahEl) sudahEl.textContent = d.sudah_kirim || 0;
+
+        if (patients.length === 0) {
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-4 py-10 text-center text-slate-400 font-semibold">
+                            <i class="fas fa-check-circle text-emerald-500 text-lg mb-1 block"></i>
+                            Tidak ada pasien batal tercatat pada rentang ${rangeLabel}
+                        </td>
+                    </tr>
+                `;
+            }
+            if (btnExec) btnExec.disabled = true;
+            return;
+        }
+
+        if (btnExec) btnExec.disabled = (d.belum_kirim === 0);
+
+        if (tbody) {
+            tbody.innerHTML = patients.map(p => {
+                const statusBadge = p.is_sent_99
+                    ? '<span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"><i class="fas fa-check mr-1"></i>Sudah Terkirim</span>'
+                    : '<span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400"><i class="fas fa-clock mr-1"></i>Belum Terkirim</span>';
+
+                return `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td class="px-4 py-2.5 font-bold text-slate-700 dark:text-slate-300">
+                            ${p.tgl_registrasi || '-'}
+                        </td>
+                        <td class="px-4 py-2.5">
+                            <div class="font-bold text-slate-800 dark:text-slate-200">${p.no_rawat}</div>
+                            <code class="text-[10px] text-blue-600 dark:text-blue-400 font-mono">${p.kodebooking}</code>
+                        </td>
+                        <td class="px-4 py-2.5">
+                            <div class="font-bold text-slate-800 dark:text-slate-200">${p.nm_pasien}</div>
+                            <span class="text-[10px] text-slate-400">RM: ${p.no_rkm_medis}</span>
+                        </td>
+                        <td class="px-4 py-2.5">
+                            <div class="font-semibold text-slate-700 dark:text-slate-300">${p.nm_poli}</div>
+                            <span class="text-[10px] text-slate-400">${p.nm_dokter}</span>
+                        </td>
+                        <td class="px-4 py-2.5 text-center">
+                            <span class="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">${p.stts || 'Batal'}</span>
+                        </td>
+                        <td class="px-4 py-2.5 text-center">
+                            ${statusBadge}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    } catch (err) {
+        console.error('[Fetch Cancelled Preview Error]', err);
+        if (btnCheck) {
+            btnCheck.disabled = false;
+            btnCheck.innerHTML = '<i class="fas fa-search text-xs"></i> Cek Pasien Batal';
+        }
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-rose-500 font-semibold">Terjadi kesalahan memuat data</td></tr>`;
+    }
+}
+
+async function executeBatchCancelTasks() {
+    const fromInput = document.getElementById('cancel-task-date-from');
+    const toInput = document.getElementById('cancel-task-date-to');
+
+    const dateFromVal = fromInput ? fromInput.value : '';
+    const dateToVal = toInput ? toInput.value : dateFromVal;
+    const forceCheckbox = document.getElementById('cancel-task-force');
+    const isForce = forceCheckbox ? forceCheckbox.checked : false;
+
+    if (!dateFromVal) {
+        showToast('Pilih tanggal awal terlebih dahulu', 'warning');
+        return;
+    }
+
+    const rangeLabel = (dateFromVal === dateToVal || !dateToVal) ? dateFromVal : `${dateFromVal} s/d ${dateToVal}`;
+    const btnExec = document.getElementById('btn-execute-cancel');
+    const statusText = document.getElementById('cancel-task-status-text');
+
+    if (!confirm(`Apakah Anda yakin ingin mengirim Task 99 untuk pasien batal pada rentang tanggal ${rangeLabel}?`)) {
+        return;
+    }
+
+    if (btnExec) {
+        btnExec.disabled = true;
+        btnExec.innerHTML = '<i class="fas fa-circle-notch fa-spin text-xs"></i> <span>Mengirim Task 99 ke BPJS...</span>';
+    }
+    if (statusText) {
+        statusText.textContent = `Sedang memproses pengiriman batch Task 99 (${rangeLabel})...`;
+        statusText.className = 'text-xs font-semibold text-blue-600 dark:text-blue-400';
+    }
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const response = await fetch('/api/v1/monitoring/send-cancel-tasks-date', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken || ''
+            },
+            body: JSON.stringify({
+                date_from: dateFromVal,
+                date_to: dateToVal,
+                force: isForce
+            })
+        });
+
+        const res = await response.json();
+
+        if (btnExec) {
+            btnExec.disabled = false;
+            btnExec.innerHTML = '<i class="fas fa-paper-plane text-xs"></i> <span>Kirim Semua Task 99 Sekarang</span>';
+        }
+
+        if (res.success) {
+            const msg = `Selesai! Berhasil: ${res.success_count}, Gagal: ${res.failed_count} (Total: ${res.total_processed})`;
+            showToast(msg, res.failed_count === 0 ? 'success' : 'warning');
+
+            if (statusText) {
+                statusText.textContent = msg;
+                statusText.className = res.failed_count === 0 ? 'text-xs font-semibold text-emerald-600 dark:text-emerald-400' : 'text-xs font-semibold text-amber-600';
+            }
+
+            fetchCancelledPatientsPreview();
+
+            if (typeof doAjaxRefresh === 'function') {
+                doAjaxRefresh();
+            }
+        } else {
+            showToast(res.message || 'Gagal memproses batch Task 99', 'error');
+            if (statusText) {
+                statusText.textContent = 'Gagal: ' + (res.message || 'Terjadi kesalahan');
+                statusText.className = 'text-xs font-semibold text-rose-500';
+            }
+        }
+    } catch (err) {
+        console.error('[Execute Batch Cancel Error]', err);
+        showToast('Terjadi kesalahan koneksi saat memproses batch Task 99', 'error');
+        if (btnExec) {
+            btnExec.disabled = false;
+            btnExec.innerHTML = '<i class="fas fa-paper-plane text-xs"></i> <span>Kirim Semua Task 99 Sekarang</span>';
+        }
+        if (statusText) {
+            statusText.textContent = 'Terjadi kesalahan koneksi.';
+            statusText.className = 'text-xs font-semibold text-rose-500';
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODAL PASIEN NORMAL (TASK 3-7 BATCH WEB)
+// ═══════════════════════════════════════════════════════════════
+function openNormalBatchModal() {
+    const modal = document.getElementById('modal-normal-batch-tasks');
+    if (!modal) return;
+
+    const fromVal = typeof dateFrom !== 'undefined' ? dateFrom : (document.querySelector('input[name="date_from"]')?.value || '');
+    const toVal = typeof dateTo !== 'undefined' ? dateTo : (document.querySelector('input[name="date_to"]')?.value || fromVal);
+
+    const dateFromInput = document.getElementById('normal-batch-date-from');
+    const dateToInput = document.getElementById('normal-batch-date-to');
+
+    if (dateFromInput && fromVal) dateFromInput.value = fromVal;
+    if (dateToInput && toVal) dateToInput.value = toVal;
+
+    modal.classList.remove('hidden');
+    fetchNormalBatchPreview();
+}
+
+function closeNormalBatchModal() {
+    if (isNormalBatchRunning) {
+        if (!confirm('Pengiriman batch sedang berjalan. Yakin ingin menutup? Proses yang sedang berjalan akan dihentikan.')) {
+            return;
+        }
+        isNormalBatchRunning = false;
+    }
+    const modal = document.getElementById('modal-normal-batch-tasks');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function fetchNormalBatchPreview() {
+    const fromInput = document.getElementById('normal-batch-date-from');
+    const toInput = document.getElementById('normal-batch-date-to');
+
+    const dateFromVal = fromInput ? fromInput.value : '';
+    const dateToVal = toInput ? toInput.value : dateFromVal;
+
+    if (!dateFromVal) {
+        showToast('Pilih tanggal awal terlebih dahulu', 'warning');
+        return;
+    }
+
+    const tbody = document.getElementById('normal-batch-tbody');
+    const btnCheck = document.getElementById('btn-check-normal-batch');
+    const btnExec = document.getElementById('btn-execute-normal-batch');
+
+    if (btnCheck) {
+        btnCheck.disabled = true;
+        btnCheck.innerHTML = '<i class="fas fa-circle-notch fa-spin text-xs"></i> Memuat...';
+    }
+
+    const rangeLabel = (dateFromVal === dateToVal || !dateToVal) ? dateFromVal : `${dateFromVal} s/d ${dateToVal}`;
+
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-4 py-8 text-center text-slate-400 font-semibold">
+                    <i class="fas fa-circle-notch fa-spin text-blue-500 mr-1.5"></i> Mengambil data pasien normal (${rangeLabel})...
+                </td>
+            </tr>
+        `;
+    }
+
+    try {
+        const res = await fetch(`/api/v1/monitoring/normal-batch-preview?date_from=${dateFromVal}&date_to=${dateToVal}`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const json = await res.json();
+
+        if (btnCheck) {
+            btnCheck.disabled = false;
+            btnCheck.innerHTML = '<i class="fas fa-search text-xs"></i> Cek Pasien Normal';
+        }
+
+        if (!json.success || !json.data) {
+            if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-rose-500 font-semibold">${json.message || 'Gagal memuat data'}</td></tr>`;
+            return;
+        }
+
+        const d = json.data;
+        const patients = d.data || [];
+        normalBatchPatientsQueue = patients;
+
+        const totalEl = document.getElementById('normal-stat-total');
+        const belumEl = document.getElementById('normal-stat-belum');
+        const lengkapEl = document.getElementById('normal-stat-lengkap');
+
+        if (totalEl) totalEl.textContent = d.total || 0;
+        if (belumEl) belumEl.textContent = d.belum_lengkap || 0;
+        if (lengkapEl) lengkapEl.textContent = d.sudah_lengkap || 0;
+
+        if (patients.length === 0) {
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-4 py-10 text-center text-slate-400 font-semibold">
+                            <i class="fas fa-check-circle text-emerald-500 text-lg mb-1 block"></i>
+                            Tidak ada pasien normal tercatat pada rentang ${rangeLabel}
+                        </td>
+                    </tr>
+                `;
+            }
+            if (btnExec) btnExec.disabled = true;
+            return;
+        }
+
+        if (btnExec) btnExec.disabled = (d.belum_lengkap === 0);
+
+        if (tbody) {
+            tbody.innerHTML = patients.map(p => {
+                const badgeClass = p.is_complete ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400';
+                return `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td class="px-4 py-2.5 font-bold text-slate-700 dark:text-slate-300">
+                            ${p.tgl_registrasi || '-'}
+                        </td>
+                        <td class="px-4 py-2.5">
+                            <div class="font-bold text-slate-800 dark:text-slate-200">${p.no_rawat}</div>
+                            <code class="text-[10px] text-blue-600 dark:text-blue-400 font-mono">${p.kodebooking}</code>
+                        </td>
+                        <td class="px-4 py-2.5">
+                            <div class="font-bold text-slate-800 dark:text-slate-200">${p.nm_pasien}</div>
+                            <span class="text-[10px] text-slate-400">RM: ${p.no_rkm_medis}</span>
+                        </td>
+                        <td class="px-4 py-2.5">
+                            <div class="font-semibold text-slate-700 dark:text-slate-300">${p.nm_poli}</div>
+                            <span class="text-[10px] text-slate-400">${p.nm_dokter}</span>
+                        </td>
+                        <td class="px-4 py-2.5 text-center">
+                            <span class="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">${p.stts || 'Periksa'}</span>
+                        </td>
+                        <td class="px-4 py-2.5 text-center">
+                            <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}">${p.status_task}</span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    } catch (err) {
+        console.error('[Fetch Normal Batch Preview Error]', err);
+        if (btnCheck) {
+            btnCheck.disabled = false;
+            btnCheck.innerHTML = '<i class="fas fa-search text-xs"></i> Cek Pasien Normal';
+        }
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-rose-500 font-semibold">Terjadi kesalahan memuat data</td></tr>`;
+    }
+}
+
+async function startNormalBatchProcessing() {
+    const isForce = document.getElementById('normal-batch-force')?.checked || false;
+    let targets = isForce ? normalBatchPatientsQueue : normalBatchPatientsQueue.filter(p => !p.is_complete);
+
+    if (targets.length === 0) {
+        showToast('Tidak ada pasien normal yang perlu diproses', 'info');
+        return;
+    }
+
+    if (!confirm(`Mulai pengiriman batch Task ID untuk ${targets.length} pasien normal? Proses akan dikirim bertahap ke server BPJS.`)) {
+        return;
+    }
+
+    isNormalBatchRunning = true;
+
+    const btnExec = document.getElementById('btn-execute-normal-batch');
+    const btnStop = document.getElementById('btn-stop-normal-batch');
+    const btnClose = document.getElementById('btn-close-normal-batch');
+    const progressContainer = document.getElementById('normal-batch-progress-container');
+    const progressBar = document.getElementById('normal-batch-progress-bar');
+    const progressPercent = document.getElementById('normal-batch-progress-percent');
+    const progressStatus = document.getElementById('normal-batch-progress-status');
+    const progressCounts = document.getElementById('normal-batch-progress-counts');
+    const progressStats = document.getElementById('normal-batch-progress-stats');
+    const statusText = document.getElementById('normal-batch-status-text');
+
+    if (btnExec) btnExec.classList.add('hidden');
+    if (btnStop) {
+        btnStop.disabled = false;
+        btnStop.innerHTML = '<i class="fas fa-stop text-xs"></i> <span>Hentikan</span>';
+        btnStop.classList.remove('hidden');
+    }
+    if (btnClose) btnClose.disabled = true;
+    if (progressContainer) progressContainer.classList.remove('hidden');
+
+    const totalTargets = targets.length;
+    const chunkSize = 15; // 15 patients per chunk = fast & safe
+    let processedTotal = 0;
+    let successTotal = 0;
+    let failedTotal = 0;
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+    for (let i = 0; i < totalTargets; i += chunkSize) {
+        if (!isNormalBatchRunning) {
+            showToast('Pengiriman batch dihentikan oleh pengguna.', 'warning');
+            break;
+        }
+
+        const chunk = targets.slice(i, i + chunkSize);
+        const chunkPayload = chunk.map(p => ({ kodebooking: p.kodebooking, no_rawat: p.no_rawat }));
+
+        const currentEnd = Math.min(i + chunkSize, totalTargets);
+        if (progressStatus) progressStatus.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Memproses ${i + 1} - ${currentEnd} dari ${totalTargets}...`;
+        if (statusText) statusText.textContent = `Mengirim chunk ${Math.floor(i / chunkSize) + 1}...`;
+
+        try {
+            const resp = await fetch('/api/v1/monitoring/send-normal-batch-chunk', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken || ''
+                },
+                body: JSON.stringify({ patients: chunkPayload })
+            });
+
+            const resJson = await resp.json();
+
+            if (resJson.success) {
+                successTotal += (resJson.success_count || 0);
+                failedTotal += (resJson.failed_count || 0);
+            } else {
+                failedTotal += chunk.length;
+            }
+        } catch (err) {
+            console.error('[Batch Chunk Error]', err);
+            failedTotal += chunk.length;
+        }
+
+        processedTotal = currentEnd;
+        const pct = Math.round((processedTotal / totalTargets) * 100);
+
+        if (progressBar) progressBar.style.width = `${pct}%`;
+        if (progressPercent) progressPercent.textContent = `${pct}%`;
+        if (progressCounts) progressCounts.textContent = `Proses: ${processedTotal} / ${totalTargets}`;
+        if (progressStats) progressStats.textContent = `Sukses: ${successTotal} | Gagal: ${failedTotal}`;
+    }
+
+    isNormalBatchRunning = false;
+
+    if (btnExec) btnExec.classList.remove('hidden');
+    if (btnStop) btnStop.classList.add('hidden');
+    if (btnClose) btnClose.disabled = false;
+
+    const summaryMsg = `Batch Selesai! Berhasil: ${successTotal}, Gagal: ${failedTotal} dari total ${processedTotal} pasien.`;
+    showToast(summaryMsg, failedTotal === 0 ? 'success' : 'warning');
+
+    if (statusText) {
+        statusText.textContent = summaryMsg;
+        statusText.className = failedTotal === 0 ? 'text-xs font-semibold text-emerald-600 dark:text-emerald-400' : 'text-xs font-semibold text-amber-600';
+    }
+    if (progressStatus) {
+        progressStatus.innerHTML = `<i class="fas fa-check-circle text-emerald-500"></i> Pengiriman Selesai`;
+    }
+
+    fetchNormalBatchPreview();
+
+    if (typeof doAjaxRefresh === 'function') {
+        doAjaxRefresh();
+    }
+}
+
+function stopNormalBatchProcessing() {
+    isNormalBatchRunning = false;
+    const btnStop = document.getElementById('btn-stop-normal-batch');
+    if (btnStop) {
+        btnStop.disabled = true;
+        btnStop.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i> Menghentikan...';
+    }
+}
+
 function setupFilters() {
     const searchInput = document.getElementById('search-patient');
     const selectClinic = document.getElementById('filter-clinic');
     const selectStatus = document.getElementById('filter-status');
     const pageSizeSelect = document.getElementById('pagination-page-size');
 
-    // Read initial grand total from global analytics or DOM
     if (typeof window.analytics !== 'undefined' && window.analytics?.summary?.total_patients) {
         grandTotal = Number(window.analytics.summary.total_patients);
     } else {
@@ -506,7 +1131,6 @@ function doAjaxRefresh() {
         if (!res.success || !res.data) return;
         const data = res.data;
 
-        // 1. Automatically update all diagrams, timeline, and KPI cards
         if (typeof window.updateDashboardAnalytics === 'function') {
             window.updateDashboardAnalytics(data);
         }
@@ -515,7 +1139,6 @@ function doAjaxRefresh() {
             grandTotal = Number(data.summary.total_patients);
         }
 
-        // 2. Fetch fresh patient rows for current page
         fetchPatientsPage(currentPage);
 
         if (refreshBtn) refreshBtn.innerHTML = '<i class="fas fa-redo"></i>';
@@ -547,6 +1170,18 @@ window.scrollToPatientTableWithAnomalies = scrollToPatientTableWithAnomalies;
 window.filterPatientByAnomaly = filterPatientByAnomaly;
 window.exportToCSV = exportToCSV;
 window.doAjaxRefresh = doAjaxRefresh;
+window.showToast = showToast;
+window.sendPatientTasksManual = sendPatientTasksManual;
+window.openCancelTasksModal = openCancelTasksModal;
+window.closeCancelTasksModal = closeCancelTasksModal;
+window.fetchCancelledPatientsPreview = fetchCancelledPatientsPreview;
+window.executeBatchCancelTasks = executeBatchCancelTasks;
+
+window.openNormalBatchModal = openNormalBatchModal;
+window.closeNormalBatchModal = closeNormalBatchModal;
+window.fetchNormalBatchPreview = fetchNormalBatchPreview;
+window.startNormalBatchProcessing = startNormalBatchProcessing;
+window.stopNormalBatchProcessing = stopNormalBatchProcessing;
 
 document.addEventListener('DOMContentLoaded', function () {
     setupFilters();
