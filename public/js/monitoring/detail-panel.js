@@ -329,20 +329,41 @@ function renderDetailContent(patient) {
         </div>
     `;
 
-    // Render Action Footer (Cross Verify)
+    // Render Action Footer
     if (footer) {
-        if (patient.has_booking) {
-            footer.innerHTML = `
-                <button onclick="crossVerifyBpjs('${patient.no_rawat}')" id="btn-verify-bpjs" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-blue-500/20">
-                    <i class="fas fa-shield-alt mr-1"></i> Verify dengan BPJS API
+        let actionButtonsHTML = '';
+
+        if (patient.stts !== 'Batal') {
+            actionButtonsHTML += `
+                <button onclick="sendPatientTasksManual('${patient.kode_booking || ''}', '${patient.no_rawat || ''}', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5">
+                    <i class="fas fa-paper-plane text-xs"></i> Kirim Task Normal
                 </button>
-                <button onclick="closeDetailPanel()" class="glass px-5 py-3 rounded-2xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Tutup</button>
+                <button onclick="confirmCancelPatient('${patient.kode_booking || ''}', '${patient.no_rawat || ''}', '${(patient.nm_pasien || '').replace(/'/g, "\\'")}')" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-rose-500/20 flex items-center gap-1.5">
+                    <i class="fas fa-user-times text-xs"></i> Batalkan (Task 99)
+                </button>
             `;
         } else {
-            footer.innerHTML = `
-                <button onclick="closeDetailPanel()" class="glass px-5 py-3 rounded-2xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Tutup</button>
+            actionButtonsHTML += `
+                <button onclick="sendPatientTasksManual('${patient.kode_booking || ''}', '${patient.no_rawat || ''}', this)" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-rose-500/20 flex items-center gap-1.5">
+                    <i class="fas fa-user-slash text-xs"></i> Kirim Ulang Task 99
+                </button>
             `;
         }
+
+        if (patient.has_booking) {
+            actionButtonsHTML += `
+                <button onclick="crossVerifyBpjs('${patient.no_rawat}')" id="btn-verify-bpjs" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-blue-500/20 flex items-center gap-1.5">
+                    <i class="fas fa-shield-alt text-xs"></i> Verify BPJS
+                </button>
+            `;
+        }
+
+        footer.innerHTML = `
+            <div class="flex items-center gap-2 flex-wrap">
+                ${actionButtonsHTML}
+            </div>
+            <button onclick="closeDetailPanel()" class="glass px-4 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Tutup</button>
+        `;
     }
 }
 
