@@ -593,6 +593,35 @@ class FlowAnalyticsController extends Controller
     }
 
     /**
+     * Cancel a patient manually in SIMRS and send Task 99 to BPJS
+     */
+    public function cancelPatient(Request $request): JsonResponse
+    {
+        $request->validate([
+            'no_rawat' => 'required|string',
+        ]);
+
+        $kodebooking = $request->input('kodebooking');
+        $noRawat     = $request->input('no_rawat');
+        $keterangan  = $request->input('keterangan', 'Pasien Batal / Tidak Hadir');
+
+        try {
+            $result = $this->flowAnalyticsService->cancelPatientManually(
+                $kodebooking ?: $noRawat,
+                $noRawat,
+                $keterangan
+            );
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membatalkan pasien: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Get cancelled patients for a given date
      */
     public function getCancelledPatients(Request $request): JsonResponse
@@ -600,8 +629,10 @@ class FlowAnalyticsController extends Controller
         $dateFrom = $request->get('date_from', $request->get('date', Carbon::today()->format('Y-m-d')));
         $dateTo   = $request->get('date_to', $dateFrom);
 
+        $includeUnexamined = filter_var($request->get('include_unexamined', false), FILTER_VALIDATE_BOOLEAN);
+
         try {
-            $data = $this->flowAnalyticsService->getCancelledPatientsByDate($dateFrom, $dateTo);
+            $data = $this->flowAnalyticsService->getCancelledPatientsByDate($dateFrom, $dateTo, $includeUnexamined);
 
             return response()->json([
                 'success' => true,
@@ -624,8 +655,10 @@ class FlowAnalyticsController extends Controller
         $dateTo   = $request->input('date_to', $dateFrom);
         $force    = (bool) $request->input('force', false);
 
+        $includeUnexamined = filter_var($request->input('include_unexamined', false), FILTER_VALIDATE_BOOLEAN);
+
         try {
-            $result = $this->flowAnalyticsService->sendCancelledPatientsByDate($dateFrom, $dateTo, $force);
+            $result = $this->flowAnalyticsService->sendCancelledPatientsByDate($dateFrom, $dateTo, $force, $includeUnexamined);
 
             return response()->json($result);
         } catch (\Throwable $e) {

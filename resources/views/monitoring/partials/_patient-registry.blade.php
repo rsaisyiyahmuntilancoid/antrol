@@ -248,6 +248,14 @@
                                 <i class="fas {{ $p['status'] === 'Batal' ? 'fa-user-slash' : ($p['status'] === 'Lengkap (3,4,5,6,7)' ? 'fa-redo-alt' : 'fa-paper-plane') }} text-[11px]"></i>
                                 <span>{{ $p['status'] === 'Batal' ? 'Kirim 99' : ($p['status'] === 'Lengkap (3,4,5,6,7)' ? 'Ulang' : 'Kirim') }}</span>
                             </button>
+                            @if($p['status'] !== 'Batal')
+                            <button onclick="confirmCancelPatient('{{ $p['kode_booking'] }}', '{{ $p['no_rawat'] }}', '{{ addslashes($p['nm_pasien'] ?? '') }}', this)"
+                                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-white dark:bg-slate-900 hover:bg-rose-600 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white border border-rose-200/80 dark:border-rose-800/80 shadow-xs transition-all duration-150 transform active:scale-95 group"
+                                title="Batalkan kunjungan pasien di SIMRS dan kirim Task 99 ke BPJS">
+                                <i class="fas fa-user-times text-[11px] opacity-80 group-hover:opacity-100"></i>
+                                <span>Batal</span>
+                            </button>
+                            @endif
                         </div>
                     </td>
                 </tr>
@@ -313,6 +321,48 @@
         </div>
     </div>
 </div>
+<!-- Modal Konfirmasi Batalkan Pasien Tunggal -->
+<div id="modal-single-cancel" class="fixed inset-0 z-50 hidden overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden transform transition-all animate-fadeIn">
+        <div class="px-6 py-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between bg-rose-50/50 dark:bg-rose-950/20">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold text-lg shadow-sm">
+                    <i class="fas fa-user-slash"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Batalkan Pasien (Task 99)</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Status SIMRS akan diubah ke Batal & kirim Task 99</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeSingleCancelModal()" class="w-8 h-8 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-all">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-6 space-y-4">
+            <input type="hidden" id="single-cancel-kodebooking">
+            <input type="hidden" id="single-cancel-norawat">
+            <div class="p-4 rounded-2xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-900/40 text-xs text-rose-800 dark:text-rose-300">
+                <p class="font-bold text-sm mb-1" id="single-cancel-patient-name">—</p>
+                <p class="text-[11px] opacity-80" id="single-cancel-patient-info">—</p>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Alasan Pembatalan:</label>
+                <input type="text" id="single-cancel-reason" value="Pasien Batal / Tidak Hadir"
+                    class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-rose-500 text-slate-800 dark:text-slate-200">
+            </div>
+            <p class="text-[11px] text-slate-400 italic">
+                Tindakan ini akan mengupdate status pasien di SIMRS Khanza menjadi Batal dan mengirim sinyal Task 99 ke BPJS Antrean.
+            </p>
+        </div>
+        <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5">
+            <button type="button" onclick="closeSingleCancelModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800 transition-all">Tutup</button>
+            <button type="button" id="btn-submit-single-cancel" onclick="submitSingleCancel()" class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20 transition-all flex items-center gap-1.5">
+                <i class="fas fa-user-times"></i> Ya, Batalkan Pasien
+            </button>
+        </div>
+    </div>
+</div>
+
 
 
 <!-- Modal Khusus Kirim Task 99 Pasien Batal -->
@@ -351,6 +401,10 @@
                         class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all flex items-center gap-1.5">
                         <i class="fas fa-search text-xs"></i> Cek Pasien Batal
                     </button>
+                    <label class="flex items-center gap-1.5 cursor-pointer ml-1 select-none text-xs text-slate-600 dark:text-slate-300">
+                        <input type="checkbox" id="cancel-task-include-unexamined" class="rounded border-slate-300 text-rose-600 focus:ring-rose-500">
+                        <span>Sertakan pasien belum periksa (tidak hadir)</span>
+                    </label>
                 </div>
 
                 <!-- Stats Badges -->

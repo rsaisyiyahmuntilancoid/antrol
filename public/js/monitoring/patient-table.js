@@ -13,6 +13,7 @@ let filteredTotal = 0;
 let totalPages = 1;
 let isLoadingPatients = false;
 let searchDebounceTimer = null;
+let currentFetchController = null;
 
 let isNormalBatchRunning = false;
 let normalBatchPatientsQueue = [];
@@ -179,6 +180,13 @@ function renderPatientRowHtml(p) {
                         <i class="fas ${sendBtnIcon} text-[11px]"></i>
                         <span>${sendBtnText}</span>
                     </button>
+                    ${p.status !== 'Batal' ? `
+                    <button onclick="confirmCancelPatient('${p.kode_booking || ''}', '${p.no_rawat || ''}', '${(p.nm_pasien || '').replace(/'/g, "\\'")}', this)"
+                        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-white dark:bg-slate-900 hover:bg-rose-600 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white border border-rose-200/80 dark:border-rose-800/80 shadow-xs transition-all duration-150 transform active:scale-95 group"
+                        title="Batalkan kunjungan pasien di SIMRS dan kirim Task 99 ke BPJS">
+                        <i class="fas fa-user-times text-[11px] opacity-80 group-hover:opacity-100"></i>
+                        <span>Batal</span>
+                    </button>` : ''}
                 </div>
             </td>
         </tr>
@@ -315,7 +323,13 @@ function updatePaginationControls() {
 }
 
 function fetchPatientsPage(page = 1) {
-    if (isLoadingPatients) return;
+    // Abort previous in-flight request if user is actively searching/filtering
+    if (currentFetchController) {
+        currentFetchController.abort();
+    }
+    currentFetchController = new AbortController();
+    const signal = currentFetchController.signal;
+
     isLoadingPatients = true;
 
     const fromVal = typeof dateFrom !== 'undefined' ? dateFrom : (document.querySelector('input[name="date_from"]')?.value || '');
@@ -336,6 +350,7 @@ function fetchPatientsPage(page = 1) {
     const url = `/api/v1/monitoring/patients?page=${page}&per_page=${pageSize}&date_from=${fromVal}&date_to=${toVal}&search=${encodeURIComponent(query)}&clinic=${encodeURIComponent(selectedClinic)}&status=${encodeURIComponent(selectedStatus)}`;
 
     fetch(url, {
+        signal: signal,
         headers: {
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
@@ -344,6 +359,7 @@ function fetchPatientsPage(page = 1) {
     .then(r => r.json())
     .then(res => {
         isLoadingPatients = false;
+        currentFetchController = null;
         if (tbody) tbody.style.opacity = '1';
 
         if (!res.success || !res.data) return;
@@ -366,11 +382,133 @@ function fetchPatientsPage(page = 1) {
         updatePaginationControls();
     })
     .catch(err => {
+        if (err.name === 'AbortError') {
+            // Superseded by newer search query
+            return;
+        }
         isLoadingPatients = false;
+        currentFetchController = null;
         if (tbody) tbody.style.opacity = '1';
         console.error('[Patients Fetch Error]', err);
     });
 }
+
+// ═════════════════════════════════════════════════════════════════
+// SINGLE PATIENT CANCELLATION (TASK 99)
+// ═════════════════════════════════════════════════════════════════
+function confirmCancelPatient(kodebooking, noRawat, nmPasien, btnElement) {
+    const modal = document.getElementById('modal-single-cancel');
+    if (!modal) {
+        if (confirm(`Batalkan kunjungan pasien ${nmPasien || ''} (${noRawat}) di SIMRS dan kirim Task 99 ke BPJS?`)) {
+            executeSingleCancel(kodebooking, noRawat, 'Pasien Batal / Tidak Hadir', btnElement);
+        }
+        return;
+    }
+
+    document.getElementById('single-cancel-kodebooking').value = kodebooking || '';
+    document.getElementById('single-cancel-norawat').value = noRawat || '';
+    document.getElementById('single-cancel-patient-name').textContent = nmPasien || 'Nama Pasien';
+    document.getElementById('single-cancel-patient-info').textContent = `No. Rawat: ${noRawat || '-'} • Booking: ${kodebooking || '-'}`;
+    document.getElementById('single-cancel-reason').value = 'Pasien Batal / Tidak Hadir';
+
+    modal.classList.remove('hidden');
+}
+
+function closeSingleCancelModal() {
+    const modal = document.getElementById('modal-single-cancel');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function submitSingleCancel() {
+    const kb = document.getElementById('single-cancel-kodebooking')?.value || '';
+    const nr = document.getElementById('single-cancel-norawat')?.value || '';
+    const reason = document.getElementById('single-cancel-reason')?.value || 'Pasien Batal / Tidak Hadir';
+    const btn = document.getElementById('btn-submit-single-cancel');
+
+    if (!nr) {
+        showToast('No. Rawat tidak valid', 'error');
+        return;
+    }
+
+    let origBtnHtml = '';
+    if (btn) {
+        origBtnHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memproses...';
+    }
+
+    try {
+        await executeSingleCancel(kb, nr, reason);
+        closeSingleCancelModal();
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origBtnHtml;
+        }
+    }
+}
+
+async function executeSingleCancel(kodebooking, noRawat, keterangan = 'Pasien Batal / Tidak Hadir', btnElement = null) {
+    let origHtml = '';
+    if (btnElement) {
+        origHtml = btnElement.innerHTML;
+        btnElement.disabled = true;
+        btnElement.innerHTML = '<i class="fas fa-circle-notch fa-spin text-[11px]"></i>';
+    }
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const response = await fetch('/api/v1/monitoring/cancel-patient', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken || ''
+            },
+            body: JSON.stringify({
+                kodebooking: kodebooking || noRawat,
+                no_rawat: noRawat,
+                keterangan: keterangan
+            })
+        });
+
+        const res = await response.json();
+
+        if (res.success) {
+            showToast(res.message || 'Pasien berhasil dibatalkan dan Task 99 dikirim', 'success');
+
+            if (res.patient) {
+                const row = document.querySelector(`tr.patient-row[data-rawat="${noRawat}"]`) ||
+                            document.querySelector(`tr.patient-row[data-kodebooking="${kodebooking}"]`);
+                if (row) {
+                    const tempTable = document.createElement('tbody');
+                    tempTable.innerHTML = renderPatientRowHtml(res.patient);
+                    const newRow = tempTable.firstElementChild;
+                    if (newRow) {
+                        row.replaceWith(newRow);
+                    }
+                }
+            } else {
+                fetchPatientsPage(currentPage);
+            }
+        } else {
+            showToast(res.message || 'Gagal membatalkan pasien', 'error');
+            if (btnElement) {
+                btnElement.disabled = false;
+                btnElement.innerHTML = origHtml;
+            }
+        }
+    } catch (err) {
+        console.error('[Cancel Patient Error]', err);
+        showToast('Terjadi kesalahan koneksi saat membatalkan pasien', 'error');
+        if (btnElement) {
+            btnElement.disabled = false;
+            btnElement.innerHTML = origHtml;
+        }
+    }
+}
+
 
 async function sendPatientTasksManual(kodebooking, noRawat, btnElement) {
     if (!kodebooking && !noRawat) {
@@ -494,7 +632,8 @@ async function fetchCancelledPatientsPreview() {
     }
 
     try {
-        const res = await fetch(`/api/v1/monitoring/cancelled-patients?date_from=${dateFromVal}&date_to=${dateToVal}`, {
+        const incUnex = document.getElementById('cancel-task-include-unexamined')?.checked ? 1 : 0;
+        const res = await fetch(`/api/v1/monitoring/cancelled-patients?date_from=${dateFromVal}&date_to=${dateToVal}&include_unexamined=${incUnex}`, {
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
@@ -627,7 +766,8 @@ async function executeBatchCancelTasks() {
             body: JSON.stringify({
                 date_from: dateFromVal,
                 date_to: dateToVal,
-                force: isForce
+                force: isForce,
+                include_unexamined: document.getElementById('cancel-task-include-unexamined')?.checked ? 1 : 0
             })
         });
 
@@ -980,7 +1120,15 @@ function setupFilters() {
     if (searchInput) {
         searchInput.addEventListener('input', () => {
             if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
-            searchDebounceTimer = setTimeout(triggerServerFilter, 300);
+            searchDebounceTimer = setTimeout(triggerServerFilter, 400);
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+                triggerServerFilter();
+            }
         });
     }
 
@@ -1172,6 +1320,9 @@ window.exportToCSV = exportToCSV;
 window.doAjaxRefresh = doAjaxRefresh;
 window.showToast = showToast;
 window.sendPatientTasksManual = sendPatientTasksManual;
+window.confirmCancelPatient = confirmCancelPatient;
+window.closeSingleCancelModal = closeSingleCancelModal;
+window.submitSingleCancel = submitSingleCancel;
 window.openCancelTasksModal = openCancelTasksModal;
 window.closeCancelTasksModal = closeCancelTasksModal;
 window.fetchCancelledPatientsPreview = fetchCancelledPatientsPreview;

@@ -92,6 +92,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/sync-patient', [FlowAnalyticsController::class, 'syncPatient']);
             Route::post('/sync-batch', [FlowAnalyticsController::class, 'syncBatch']);
             Route::post('/send-patient-tasks', [FlowAnalyticsController::class, 'sendPatientTasks']);
+            Route::post('/cancel-patient', [FlowAnalyticsController::class, 'cancelPatient']);
             Route::get('/cancelled-patients', [FlowAnalyticsController::class, 'getCancelledPatients']);
             Route::post('/send-cancel-tasks-date', [FlowAnalyticsController::class, 'sendCancelTasksDate']);
             Route::get('/normal-batch-preview', [FlowAnalyticsController::class, 'getNormalBatchPreview']);

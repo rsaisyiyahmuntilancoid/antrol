@@ -1892,26 +1892,40 @@ class FlowAnalyticsService
     /**
      * Get cancelled patients for a given date with their Task 99 status
      */
-    public function getCancelledPatientsByDate(string $tanggalFrom, ?string $tanggalTo = null): array
+    public function getCancelledPatientsByDate(string $tanggalFrom, ?string $tanggalTo = null, bool $includeUnexamined = false): array
     {
         $kdPj = config('mobilejkn.kd_pj', 'BPJ');
         $isRange = ! empty($tanggalTo) && $tanggalTo !== $tanggalFrom;
         $endDate = $isRange ? $tanggalTo : $tanggalFrom;
 
-        // Query RegPeriksa cancelled patients
+        // Query RegPeriksa cancelled patients (and optionally unexamined / non-attendance patients)
         $query = RegPeriksa::with([
             'referensiMobilejknBpjs',
             'pasien',
             'poliklinik',
             'dokter',
+            'pemeriksaanRalan',
         ])
-        ->where('kd_pj', $kdPj)
-        ->where(function ($q) {
-            $q->where('stts', 'Batal')
-              ->orWhereHas('referensiMobilejknBpjs', function ($refQ) {
-                  $refQ->where('status', 'Batal');
-              });
-        });
+        ->where('kd_pj', $kdPj);
+
+        if ($includeUnexamined) {
+            $query->where(function ($q) {
+                $q->where('stts', 'Batal')
+                  ->orWhereHas('referensiMobilejknBpjs', function ($refQ) {
+                      $refQ->where('status', 'Batal');
+                  })
+                  ->orWhere(function ($subQ) {
+                      $subQ->where('stts', 'Belum')->doesntHave('pemeriksaanRalan');
+                  });
+            });
+        } else {
+            $query->where(function ($q) {
+                $q->where('stts', 'Batal')
+                  ->orWhereHas('referensiMobilejknBpjs', function ($refQ) {
+                      $refQ->where('status', 'Batal');
+                  });
+            });
+        }
 
         if ($isRange) {
             $query->whereBetween('tgl_registrasi', [$tanggalFrom, $endDate]);
@@ -1977,6 +1991,15 @@ class FlowAnalyticsService
                 $belumKirimCount++;
             }
 
+            $alasan = null;
+            if ($r->stts === 'Belum') {
+                $alasan = 'Belum Periksa (Tidak Hadir)';
+            } elseif ($r->referensiMobilejknBpjs?->status === 'Batal') {
+                $alasan = 'Batal dari Mobile JKN';
+            } else {
+                $alasan = 'Batal di SIMRS';
+            }
+
             $resultList[] = [
                 'no_rawat'        => $r->no_rawat,
                 'kodebooking'     => $kb,
@@ -1985,6 +2008,7 @@ class FlowAnalyticsService
                 'nm_poli'         => $r->poliklinik?->nm_poli ?? '-',
                 'nm_dokter'       => $r->dokter?->nm_dokter ?? '-',
                 'stts'            => $r->stts,
+                'alasan'          => $alasan,
                 'tgl_registrasi'  => $r->tgl_registrasi ? Carbon::parse($r->tgl_registrasi)->format('Y-m-d') : '-',
                 'status_kirim_99' => $isSudahKirim ? 'Sudah' : 'Belum',
                 'is_sent_99'      => $isSudahKirim,
@@ -2007,9 +2031,9 @@ class FlowAnalyticsService
     /**
      * Send Task 99 in batch for all cancelled patients in a given date or date range
      */
-    public function sendCancelledPatientsByDate(string $tanggalFrom, ?string $tanggalTo = null, bool $force = false): array
+    public function sendCancelledPatientsByDate(string $tanggalFrom, ?string $tanggalTo = null, bool $force = false, bool $includeUnexamined = false): array
     {
-        $preview = $this->getCancelledPatientsByDate($tanggalFrom, $tanggalTo);
+        $preview = $this->getCancelledPatientsByDate($tanggalFrom, $tanggalTo, $includeUnexamined);
         $candidates = $preview['data'] ?? [];
 
         $targets = array_filter($candidates, function ($item) use ($force) {

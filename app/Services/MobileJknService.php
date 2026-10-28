@@ -1113,7 +1113,7 @@ class MobileJknService
             }
 
             $metaCode = $responseData['metadata']['code'] ?? null;
-            $isBpjsSuccess = ($metaCode == 200 || $metaCode == 201 || (is_string($metaMessage) && strpos($metaMessage, 'Ok') !== false));
+            $isBpjsSuccess = ($metaCode == 200 || $metaCode == 201 || (is_string($metaMessage) && (strpos($metaMessage, 'Ok') !== false || strpos($metaMessage, 'sudah ada') !== false)));
 
             return [
                 'success' => $response->successful() && $isBpjsSuccess,
@@ -1715,15 +1715,23 @@ class MobileJknService
 
             $jenisKunjungan = 1;
             $nomorreferensi = $this->fetchRujukan($pasien->no_peserta ?? '', $kodepoli);
-            // if (empty($nomorreferensi)) {
-                // $jenisKunjungan = 4; // Rujukan RS
-                // $nomorreferensi = $this->fetchRujukanRS($pasien->no_peserta ?? '', $kodepoli);
-            // }
 
-            // if (empty($nomorreferensi)) {
-                // $jenisKunjungan = 3; // Kontrol
-                // $nomorreferensi = $this->fetchKontrol($pasien->no_peserta ?? '', $kodepoli, null, null);
-            // }
+            // Fallback to local BridgingSep if fetchRujukan is empty or already issued SEP
+            if (empty($nomorreferensi)) {
+                $sep = \App\Models\BridgingSep::where('no_rawat', $reg->no_rawat)->first();
+                if ($sep) {
+                    if (! empty($sep->nosuratkontrol)) {
+                        $jenisKunjungan = 3; // Kontrol
+                        $nomorreferensi = $sep->nosuratkontrol;
+                    } elseif (! empty($sep->no_rujukan)) {
+                        $nomorreferensi = $sep->no_rujukan;
+                        $jenisKunjungan = ($sep->asal_rujukan == '2' || strlen($sep->no_rujukan) > 19) ? 4 : 1;
+                    } elseif (! empty($sep->no_sep)) {
+                        $jenisKunjungan = 2; // Rujukan Internal / Darurat
+                        $nomorreferensi = $sep->no_sep;
+                    }
+                }
+            }
 
             Log::info("Nomor Referensi: {$nomorreferensi}, Jenis Kunjungan: {$jenisKunjungan}");
 
